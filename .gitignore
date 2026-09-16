@@ -1,0 +1,41 @@
+# Secrets and machine-specific configuration
+.env
+.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+
+# Runtime data and user uploads
+backend/instance/
+**/uploads/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Python environments and caches
+.venv/
+venv/
+backend/.packages/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# JavaScript dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+
+# Local workspace and editor state
+.workbuddy/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+

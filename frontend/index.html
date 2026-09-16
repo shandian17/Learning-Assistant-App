@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="api-base" content="/api/v1">
+  <meta name="theme-color" content="#111210">
+  <title>学习 · 大模型学习助手</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <script src="js/api.js" defer></script>
+  <script src="js/learn.js" defer></script>
+  <script src="js/library.js" defer></script>
+  <script src="js/assessment.js" defer></script>
+  <script src="js/progress.js" defer></script>
+  <script src="js/reports.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#learn" aria-label="大模型学习助手首页"><span class="brand-mark" aria-hidden="true">学</span><span>学习助手<small>大模型课程</small></span></a>
+      <nav class="primary-nav" aria-label="主导航">
+        <a href="#learn" data-route="learn" aria-current="page">学习</a>
+        <a href="#library" data-route="library">资料库</a>
+        <a href="#assessment" data-route="assessment">测评</a>
+        <a href="#progress" data-route="progress">进度</a>
+        <a href="#reports" data-route="reports">报告</a>
+      </nav>
+      <div id="connection-status" class="connection" role="status" aria-live="polite" title="正在检测后台连接">
+        <span class="connection-dot" aria-hidden="true"></span><span id="connection-label">连接检测中</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" class="main-shell" tabindex="-1">
+    <section class="page" data-page="learn" aria-labelledby="learn-title">
+      <div class="page-heading"><div><p class="eyebrow">LEARNING SPACE</p><h1 id="learn-title">让学过的知识，真正留下来。</h1><p class="page-description">从你的课程资料出发，把每一个疑问聊明白。</p></div><span class="tag">基于资料 · 有据可循</span></div>
+      <div class="learning-grid">
+        <aside class="panel source-panel"><div class="panel-heading"><h2>学习资料</h2><button id="learn-refresh-sources" class="button button-secondary button-small" type="button">刷新</button></div><p id="learn-source-error" class="notice learn-error" role="alert" hidden></p><div id="learn-sources" class="learn-sources"><p class="subtle">正在读取可用资料…</p></div><button id="learn-new-session" class="button button-secondary learn-new-session" type="button" disabled>开始新对话</button><div class="source-note">当前对话开始后资料范围固定</div></aside>
+        <div class="panel chat-panel"><div class="panel-heading"><h2><span class="gold-symbol" aria-hidden="true">✦</span> 学习导师</h2><span id="chat-state" class="subtle">请选择学习资料</span></div><div id="chat-welcome" class="chat-welcome"><div class="mentor-mark" aria-hidden="true">✦</div><p class="eyebrow">从理解，到掌握</p><h2>今天，想弄懂什么？</h2><p>拆解一个概念，理清一段原理，<br>或把课程里没想通的地方再聊一遍。</p><div class="topic-examples"><span>解释资料中的概念</span><span>梳理知识点的联系</span><span>用例子理解原理</span></div></div><div id="chat-messages" class="chat-messages" aria-live="polite"></div><p id="chat-error" class="notice learn-error" role="alert" hidden></p><form id="chat-composer" class="composer"><label class="sr-only" for="chat-input">向学习导师提问</label><textarea id="chat-input" rows="2" placeholder="选择学习资料后，开始提问…" disabled></textarea><div class="composer-footer"><span id="chat-helper">回答会标明资料出处</span><button id="chat-send" class="button button-primary button-small" type="submit" disabled>发送 <span aria-hidden="true">↑</span></button></div></form></div>
+      </div>
+    </section>
+
+    <section class="page" data-page="library" aria-labelledby="library-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">MATERIAL LIBRARY</p><h1 id="library-title">你的资料，学习的起点。</h1><p class="page-description">集中放好课程内容，问答与测评都有依据。</p></div></div>
+      <button id="upload-zone" class="panel upload-zone" type="button" aria-describedby="upload-formats upload-status">
+        <span class="outline-icon" aria-hidden="true">↑</span>
+        <span class="upload-title">拖拽资料到这里，开始上传</span>
+        <span id="upload-formats">支持 PDF、PPT、Word、Markdown、TXT</span>
+        <span class="button button-primary">选择文件</span>
+        <span id="upload-status" class="subtle" role="status">点击此区域选择文件，可一次上传多份</span>
+      </button>
+      <input id="material-files" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.md,.markdown,.txt" multiple hidden>
+      <div class="notice">同名资料上传时，将提示选择：<strong>覆盖</strong>、<strong>保留两份</strong>或<strong>取消</strong>。</div>
+      <div class="panel">
+        <div class="panel-heading"><h2>全部资料 <span id="material-count" class="subtle"></span></h2><button id="refresh-materials" class="button button-secondary button-small" type="button">刷新列表</button></div>
+        <p id="library-error" class="notice library-error" role="alert" hidden></p>
+        <div id="library-empty" class="empty-state"><h3 id="library-empty-title">正在读取资料</h3><p id="library-empty-description">请稍候…</p></div>
+        <div id="material-table-wrap" class="table-scroll" hidden>
+          <table class="material-table"><caption class="sr-only">已上传的学习资料</caption><thead><tr><th scope="col">文件名</th><th scope="col">类型</th><th scope="col">大小</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead><tbody id="material-rows"></tbody></table>
+        </div>
+      </div>
+      <dialog id="duplicate-dialog" class="modal" aria-labelledby="duplicate-title" aria-describedby="duplicate-description">
+        <form method="dialog"><h2 id="duplicate-title">发现同名资料</h2><p id="duplicate-description"></p><p class="subtle">覆盖将替换当前资料；保留两份会为新文件自动添加序号。历史测评记录不受覆盖影响。</p><div class="modal-actions"><button class="button button-secondary" value="cancel" autofocus>取消</button><button class="button button-secondary" value="keep_both">保留两份</button><button class="button button-primary" value="replace">覆盖</button></div></form>
+      </dialog>
+    </section>
+
+    <section class="page" data-page="assessment" aria-labelledby="assessment-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">KNOWLEDGE CHECK</p><h1 id="assessment-title">学会了多少，测一测就知道。</h1><p class="page-description">严格基于课程资料出题，找到还需要巩固的知识点。</p></div></div>
+      <div class="assessment-shell">
+        <ol class="assessment-steps" aria-label="测评步骤"><li data-assessment-step="setup" aria-current="step"><span>01</span> 选择范围</li><li data-assessment-step="answer"><span>02</span> 开始作答</li><li data-assessment-step="result"><span>03</span> 回顾结果</li></ol>
+        <div id="assessment-error" class="notice assessment-error" role="alert" hidden><p id="assessment-error-text"></p><button id="assessment-recover" class="button button-secondary button-small" type="button" hidden>重试</button></div>
+        <form id="assessment-setup" class="panel assessment-setup">
+          <div class="panel-heading"><h2>开始一次知识测评</h2><span class="tag">严格基于资料</span></div>
+          <div class="panel-body">
+            <fieldset id="assessment-settings"><legend class="sr-only">测评设置</legend>
+              <div class="assessment-source-heading"><h3 id="assessment-sources-label">选择要测的资料</h3><button id="assessment-refresh-sources" type="button" class="button button-secondary button-small">刷新资料</button></div>
+              <div id="assessment-sources" class="assessment-sources" role="group" aria-labelledby="assessment-sources-label"><p class="subtle">正在读取可用资料…</p></div>
+              <fieldset class="count-field"><legend>题目数量</legend><div class="count-options"><label><input type="radio" name="question-count" value="5" checked><span>5 道</span></label><label><input type="radio" name="question-count" value="8"><span>8 道</span></label><label><input type="radio" name="question-count" value="10"><span>10 道</span></label><label><input type="radio" name="question-count" value="15"><span>15 道</span></label></div></fieldset>
+              <p id="assessment-mix" class="helper-text">选择 3 道 · 判断 1 道 · 简答 1 道</p>
+            </fieldset>
+            <button id="assessment-start" class="button button-primary assessment-start" type="submit" disabled>开始测试 <span aria-hidden="true">↗</span></button>
+            <p class="helper-text">每题 1 分，简答题可获得 0.5 分。生成题目的时间不计入作答用时。</p>
+          </div>
+        </form>
+        <form id="assessment-answer" hidden>
+          <div class="panel quiz-toolbar"><div><strong id="assessment-current">第 1 题</strong><span id="assessment-answered" class="subtle"></span></div><div class="quiz-clock">已用时间 <time id="assessment-timer">00:00</time></div><progress id="assessment-progress" value="0" max="5" aria-label="已答题目进度"></progress></div>
+          <div id="assessment-questions" class="question-list"></div>
+          <div class="quiz-actions"><button id="assessment-abandon" type="button" class="button button-secondary">放弃</button><button id="assessment-submit" type="submit" class="button button-primary">提交答案</button></div>
+        </form>
+        <section id="assessment-result" aria-labelledby="assessment-result-title" hidden>
+          <div class="panel result-overview">
+            <div id="assessment-score-chart" class="score-chart" role="img" aria-label="测评得分"><svg viewBox="0 0 160 160" aria-hidden="true"><circle class="score-track" cx="80" cy="80" r="68"></circle><circle id="assessment-score-ring" class="score-ring" cx="80" cy="80" r="68" pathLength="100"></circle></svg><div class="score-center"><strong id="assessment-score">—</strong><span id="assessment-max-score" class="subtle"></span></div></div>
+            <div class="result-summary"><p class="eyebrow">ASSESSMENT COMPLETE</p><h2 id="assessment-result-title">这一次测评，你收获了什么？</h2><p id="assessment-result-scope" class="subtle"></p><div class="result-stats"><div><strong id="assessment-correct">—</strong><span>答对</span></div><div><strong id="assessment-partial">—</strong><span>部分正确</span></div><div><strong id="assessment-wrong">—</strong><span>答错／未答</span></div><div><strong id="assessment-duration">—</strong><span>作答用时</span></div></div></div>
+          </div>
+          <div class="result-detail-heading"><h2>逐题回顾</h2><span class="subtle">展开查看答案与点评</span></div>
+          <div id="assessment-review" class="question-list"></div>
+          <div class="quiz-actions"><button id="assessment-again" class="button button-secondary" type="button">开始新的测评</button></div>
+        </section>
+        <section id="assessment-history" class="panel assessment-history" aria-labelledby="assessment-history-title"><div class="panel-heading"><h2 id="assessment-history-title">历史测评</h2><button id="assessment-refresh-history" class="button button-secondary button-small" type="button">刷新记录</button></div><p id="assessment-history-message" class="history-message" role="status">正在读取历史记录…</p><div id="assessment-history-list"></div><div class="history-pagination"><button id="assessment-history-prev" type="button" class="button button-secondary button-small" disabled>上一页</button><span id="assessment-history-page" class="subtle">第 1 页</span><button id="assessment-history-next" type="button" class="button button-secondary button-small" disabled>下一页</button></div></section>
+      </div>
+      <dialog id="assessment-confirm" class="modal" aria-labelledby="assessment-confirm-title"><form method="dialog"><h2 id="assessment-confirm-title">确认提交</h2><p id="assessment-confirm-text"></p><div class="modal-actions"><button class="button button-secondary" value="cancel" autofocus>取消</button><button id="assessment-confirm-yes" class="button button-primary" value="confirm">确认</button></div></form></dialog>
+    </section>
+
+    <section class="page" data-page="progress" aria-labelledby="progress-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">LEARNING PROGRESS</p><h1 id="progress-title">让掌握程度，清晰可见。</h1><p class="page-description">以测评结果为依据，看见进展，也看见需要回顾的地方。</p></div><button id="progress-refresh" class="button button-secondary button-small" type="button">刷新进度</button></div>
+      <p id="progress-error" class="notice progress-error" role="alert" hidden></p>
+      <div id="progress-stats" class="progress-stats" aria-label="学习情况统计">
+        <article class="panel progress-stat"><span>资料总数</span><strong id="progress-total-materials">—</strong><small>当前资料库</small></article>
+        <article class="panel progress-stat"><span>掌握资料</span><strong id="progress-mastered-materials">—</strong><small>当前版本全部掌握</small></article>
+        <article class="panel progress-stat"><span>学习次数</span><strong id="progress-assessments">—</strong><small>已完成测评</small></article>
+        <article class="panel progress-stat"><span>平均分</span><strong id="progress-average-score">—</strong><small>完整测评平均得分率</small></article>
+        <article class="panel progress-stat"><span>薄弱知识点</span><strong id="progress-weak-count">—</strong><small>部分掌握与待巩固</small></article>
+      </div>
+      <div class="progress-overview">
+        <section class="panel radar-panel" aria-labelledby="radar-title"><div class="panel-heading"><div><h2 id="radar-title">知识掌握雷达</h2><span id="radar-subtitle" class="subtle">等待测评数据</span></div><div class="mastery-legend"><span>未测评</span><span>待巩固</span><span>部分掌握</span><span>已掌握</span></div></div><div id="radar-chart" class="radar-chart"><p class="subtle">正在读取知识点…</p></div></section>
+        <section class="panel knowledge-panel" aria-labelledby="knowledge-title"><div class="panel-heading"><h2 id="knowledge-title">知识点掌握情况</h2><span id="knowledge-count" class="tag">—</span></div><div id="knowledge-list" class="knowledge-list"><p class="progress-placeholder">正在读取知识点…</p></div></section>
+      </div>
+      <section class="panel weak-panel" aria-labelledby="weak-title"><div class="panel-heading"><div><h2 id="weak-title">薄弱知识点</h2><span class="subtle">部分掌握与待巩固</span></div><span id="weak-count" class="tag">—</span></div><div id="weak-list" class="weak-list"><p class="progress-placeholder">正在读取薄弱知识点…</p></div></section>
+      <section class="material-progress-section" aria-labelledby="material-progress-title"><div class="section-heading"><div><h2 id="material-progress-title">资料学习详情</h2><p class="subtle">记录当前版本的测评情况，也可以为每份资料留下学习笔记。</p></div></div><div id="material-progress-list" class="material-progress-list"><div class="panel progress-placeholder">正在读取资料详情…</div></div></section>
+    </section>
+
+    <section class="page" data-page="reports" aria-labelledby="reports-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">WEEKLY REFLECTION</p><h1 id="reports-title">回顾这一段学习，明确下一步。</h1><p class="page-description">汇总学过的内容、薄弱知识点和接下来的复习建议。</p></div></div>
+      <form id="report-generator" class="panel report-generator">
+        <div class="panel-heading"><h2>生成学习报告</h2><span id="report-timezone" class="subtle"></span></div>
+        <div class="panel-body">
+          <fieldset id="report-settings"><legend>统计时间</legend>
+            <div class="report-period-options"><label><input type="radio" name="report-period" value="week" checked><span>本周</span></label><label><input type="radio" name="report-period" value="custom"><span>自定义日期</span></label></div>
+            <p id="report-week-range" class="report-range-summary"></p>
+            <div id="report-custom-range" class="report-custom-range" hidden><label><span>开始日期</span><input id="report-date-from" type="date"></label><span aria-hidden="true">至</span><label><span>结束日期</span><input id="report-date-to" type="date"></label></div>
+          </fieldset>
+          <button id="report-generate" class="button button-primary report-generate" type="submit">生成报告 <span aria-hidden="true">✦</span></button>
+          <p class="helper-text">AI 将根据所选时段内的资料、提问和已完成测评生成总结。</p>
+        </div>
+      </form>
+      <p id="report-error" class="notice report-error" role="alert" hidden></p>
+      <section id="report-viewer" class="panel report-viewer" aria-labelledby="report-view-title">
+        <div id="report-empty" class="empty-state report-empty"><span class="outline-icon" aria-hidden="true">▤</span><h2>还没有打开报告</h2><p>选择统计时间生成新报告，或从下方历史记录中打开。</p></div>
+        <article id="report-content" hidden>
+          <header class="report-cover"><div><p class="eyebrow">LEARNING REPORT</p><h2 id="report-view-title"></h2><p id="report-period-label" class="subtle"></p></div><button id="report-download" class="button button-secondary" type="button">下载报告 <span aria-hidden="true">↓</span></button></header>
+          <div class="report-statistics"><div><strong id="report-upload-count">—</strong><span>上传／覆盖资料</span></div><div><strong id="report-question-count">—</strong><span>提出问题</span></div><div><strong id="report-assessment-count">—</strong><span>完成测评</span></div><div><strong id="report-average-score">—</strong><span>平均得分率</span></div></div>
+          <div class="report-body"><section><p class="report-section-number">01</p><h3>这段时间的学习</h3><p id="report-summary" class="report-summary"></p></section><section><p class="report-section-number">02</p><h3>学到了什么</h3><ul id="report-learned"></ul></section><section><p class="report-section-number">03</p><h3>薄弱知识点</h3><ul id="report-weak-points"></ul></section><section class="report-suggestions"><p class="report-section-number">04</p><h3>下一步建议</h3><ol id="report-suggestions"></ol></section></div>
+          <footer class="report-meta"><span id="report-generated-at"></span><span id="report-data-cutoff"></span></footer>
+        </article>
+      </section>
+      <section class="panel report-history" aria-labelledby="report-history-title"><div class="panel-heading"><div><h2 id="report-history-title">历史报告</h2><span class="subtle">以前生成的报告都保留在这里</span></div><button id="report-history-refresh" class="button button-secondary button-small" type="button">刷新记录</button></div><p id="report-history-message" class="history-message" role="status">正在读取历史报告…</p><div id="report-history-list"></div><div class="history-pagination"><button id="report-history-prev" type="button" class="button button-secondary button-small" disabled>上一页</button><span id="report-history-page" class="subtle">第 1 页</span><button id="report-history-next" type="button" class="button button-secondary button-small" disabled>下一页</button></div></section>
+    </section>
+  </main>
+  <footer class="site-footer"><span>大模型学习助手</span><span>读懂 · 记住 · 掌握</span></footer>
+  <div id="notifications" class="notifications" aria-live="polite" aria-relevant="additions"></div>
+  <noscript><p class="notice">请启用 JavaScript，以切换页面和检测后台连接。</p></noscript>
+</body>
+</html>
