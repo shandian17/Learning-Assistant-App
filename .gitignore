@@ -39,3 +39,6 @@ Thumbs.db
 *.tmp
 *.swp
 
+# Local-only planning documents superseded in the repository
+/学习助手功能需求文档.md
+/项目拓展空间.txt
