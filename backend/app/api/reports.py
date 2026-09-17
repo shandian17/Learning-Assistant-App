@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify, request, send_file
 from ..extensions import db
 from ..models import ReportGenerationRequest, WeeklyReport
 from ..services.ai_tasks import enqueue_ai_task
+from ..services.language import normalize_language
 from ..services.report_service import generate_report_task
 from .errors import APIError
 
@@ -21,6 +22,10 @@ bp = Blueprint("reports", __name__)
 @bp.post("/weekly-reports")
 def create_report():
     payload = request.get_json(silent=True) or {}
+    try:
+        language = normalize_language(payload.get("language"))
+    except ValueError as error:
+        raise APIError(400, "INVALID_ARGUMENT", "language 必须是 zh-CN 或 en") from error
     request_id = _uuid(payload.get("request_id"))
     period_type = payload.get("period_type")
     if period_type not in {"week", "custom"}:
@@ -41,6 +46,7 @@ def create_report():
         "date_from": date_from.isoformat(),
         "date_to": date_to.isoformat(),
         "timezone": timezone_name,
+        "language": language,
     }
     payload_hash = hashlib.sha256(
         json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
@@ -64,12 +70,14 @@ def create_report():
             date_from=date_from,
             date_to=date_to,
             timezone=timezone_name,
+            language=language,
             status="generating",
         )
         db.session.add(report)
         db.session.flush()
     else:
         report.period_type = period_type
+        report.language = language
         report.status = "generating"
         report.error_message = None
     db.session.add(
@@ -99,6 +107,7 @@ def list_reports():
                         "date_from": item.date_from.isoformat(),
                         "date_to": item.date_to.isoformat(),
                         "generated_at": item.generated_at.isoformat() if item.generated_at else None,
+                        "language": item.language,
                     }
                     for item in pagination.items
                 ],
@@ -124,6 +133,7 @@ def get_report(report_id: str):
                 "date_from": report.date_from.isoformat(),
                 "date_to": report.date_to.isoformat(),
                 "timezone": report.timezone,
+                "language": report.language,
                 "data_cutoff_at": report.data_cutoff_at.isoformat() if report.data_cutoff_at else None,
                 "generated_at": report.generated_at.isoformat() if report.generated_at else None,
                 "statistics": report.statistics_json,
@@ -173,45 +183,79 @@ def _date(value, field: str) -> date:
 def _report_markdown(report: WeeklyReport) -> str:
     content = report.content_json
     statistics = report.statistics_json
-    learned = _markdown_list(content["learned"], "暂无可归纳的学习内容。")
-    weak_points = _markdown_list(content["weak_points"], "暂无足够的测评数据判断薄弱知识点。")
+    english = report.language == "en"
+    learned = _markdown_list(
+        content["learned"], "No learning content is available to summarize." if english else "暂无可归纳的学习内容。"
+    )
+    weak_points = _markdown_list(
+        content["weak_points"],
+        "There is not enough assessment data to identify weak knowledge points." if english else "暂无足够的测评数据判断薄弱知识点。",
+    )
     suggestions = _markdown_list(
-        content["next_week_suggestions"], "继续积累学习和测评记录。", ordered=True
+        content["next_week_suggestions"],
+        "Keep building your learning and assessment history." if english else "继续积累学习和测评记录。",
+        ordered=True,
     )
     average = statistics["average_score_rate"]
     average_text = "—" if average is None else f"{average:g}%"
+    labels = (
+        {
+            "period": "Period",
+            "timezone": "Time zone",
+            "cutoff": "Data through",
+            "statistics": "Learning data",
+            "uploads": "Materials uploaded / replaced",
+            "questions": "Questions asked",
+            "assessments": "Assessments completed",
+            "average": "Average score rate",
+            "summary": "Learning during this period",
+            "learned": "What you learned",
+            "weak": "Weak knowledge points",
+            "suggestions": "Next steps",
+            "generated": "Generated",
+            "empty_summary": "There is no learning activity for this period.",
+        }
+        if english
+        else {
+            "period": "统计时间", "timezone": "时区", "cutoff": "数据截止", "statistics": "学习数据",
+            "uploads": "上传／覆盖资料", "questions": "提出问题", "assessments": "完成测评",
+            "average": "平均得分率", "summary": "这段时间的学习", "learned": "学到了什么",
+            "weak": "薄弱知识点", "suggestions": "下一步建议", "generated": "生成时间",
+            "empty_summary": "这段时间暂无学习记录。",
+        }
+    )
     return "\n".join(
         [
             f"# {_escape_markdown(content['title']).replace(chr(10), ' ')}",
             "",
-            f"> 统计时间：{report.date_from.isoformat()}—{report.date_to.isoformat()}  ",
-            f"> 时区：{_escape_markdown(report.timezone)}  ",
-            f"> 数据截止：{report.data_cutoff_at.isoformat()}",
+            f"> {labels['period']}: {report.date_from.isoformat()}—{report.date_to.isoformat()}  ",
+            f"> {labels['timezone']}: {_escape_markdown(report.timezone)}  ",
+            f"> {labels['cutoff']}: {report.data_cutoff_at.isoformat()}",
             "",
-            "## 学习数据",
+            f"## {labels['statistics']}",
             "",
-            f"- 上传／覆盖资料：{statistics['uploads_count']}",
-            f"- 提出问题：{statistics['questions_count']}",
-            f"- 完成测评：{statistics['assessments_count']}",
-            f"- 平均得分率：{average_text}",
+            f"- {labels['uploads']}: {statistics['uploads_count']}",
+            f"- {labels['questions']}: {statistics['questions_count']}",
+            f"- {labels['assessments']}: {statistics['assessments_count']}",
+            f"- {labels['average']}: {average_text}",
             "",
-            "## 这段时间的学习",
+            f"## {labels['summary']}",
             "",
-            _escape_markdown(content["summary"] or "这段时间暂无学习记录。"),
+            _escape_markdown(content["summary"] or labels["empty_summary"]),
             "",
-            "## 学到了什么",
+            f"## {labels['learned']}",
             "",
             learned,
             "",
-            "## 薄弱知识点",
+            f"## {labels['weak']}",
             "",
             weak_points,
             "",
-            "## 下一步建议",
+            f"## {labels['suggestions']}",
             "",
             suggestions,
             "",
-            f"生成时间：{report.generated_at.isoformat()}",
+            f"{labels['generated']}: {report.generated_at.isoformat()}",
             "",
         ]
     )

@@ -7,6 +7,9 @@
 .connection { display: flex; align-items: center; gap: 9px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .connection-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 4px var(--danger-glow); }
 .connection.is-connected .connection-dot { background: var(--success); box-shadow: 0 0 0 4px var(--success-glow); }
+.language-toggle { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); background: var(--surface); font-size: 11px; line-height: 1; cursor: pointer; }
+.language-toggle:hover { border-color: var(--gold); color: var(--text); }
+.language-toggle[data-language="zh-CN"] [data-language-option="zh-CN"], .language-toggle[data-language="en"] [data-language-option="en"] { color: var(--gold); font-weight: 700; }
 .eyebrow { color: var(--gold); font-size: 10px; letter-spacing: 2.5px; font-weight: 600; margin-bottom: 12px; }
 h1 { font-size: clamp(23px, 2.5vw, 30px); font-weight: 600; line-height: 1.4; letter-spacing: .5px; }
 h2 { font-size: 15px; font-weight: 600; }

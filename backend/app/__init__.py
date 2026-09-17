@@ -29,6 +29,10 @@ def create_app(config_override=None) -> Flask:
     from . import models  # noqa: F401
     from .api import register_blueprints, register_error_handlers
     from .commands import register_commands
+    from .schema_compat import ensure_compatibility_columns
+
+    with app.app_context():
+        ensure_compatibility_columns()
 
     register_blueprints(app)
     register_error_handlers(app)

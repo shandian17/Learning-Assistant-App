@@ -10,6 +10,7 @@ from ..models.base import utc_now
 from ..services.ai_prompts import CHAT_SYSTEM_PROMPT
 from ..services.chunk_search import load_ready_materials, search_relevant_chunks
 from ..services.llm_client import LLMClient, LLMConfigurationError, LLMResponseError, LLMServiceError
+from ..services.language import language_name, normalize_language
 from .errors import APIError
 
 
@@ -130,6 +131,10 @@ def send_message(session_id: str):
     session = _session_or_404(session_id)
     payload = request.get_json(silent=True) or {}
     content = payload.get("content")
+    try:
+        language = normalize_language(payload.get("language"))
+    except ValueError as error:
+        raise APIError(400, "INVALID_ARGUMENT", "language 必须是 zh-CN 或 en") from error
     if not isinstance(content, str) or not content.strip():
         raise APIError(400, "INVALID_ARGUMENT", "content 不能为空")
     content = content.strip()
@@ -153,6 +158,7 @@ def send_message(session_id: str):
         "current_question": content,
         "history": [{"role": item.role, "content": item.content} for item in history],
         "sources": sources,
+        "response_language": language_name(language),
     }
     db.session.rollback()
     try:
@@ -179,7 +185,10 @@ def send_message(session_id: str):
         for source_id in cited_ids
         if source_id in source_by_id
     ]
-    insufficient = "当前资料未提供足够依据" in answer
+    insufficient = (
+        "当前资料未提供足够依据" in answer
+        or "current materials do not provide sufficient evidence" in answer.lower()
+    )
     evidence_status = "insufficient" if insufficient else ("sufficient" if matched and citations else "partial")
     session = _session_or_404(session_id)
     user_created_at = utc_now()

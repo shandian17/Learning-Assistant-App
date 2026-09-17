@@ -36,13 +36,15 @@ def test_chat_uses_relevant_database_chunks_and_real_citation(app, client, monke
     session_id = created.get_json()["data"]["session_id"]
     response = client.post(
         f"/api/v1/chat/sessions/{session_id}/messages",
-        json={"content": "注意力机制如何聚合上下文？"},
+        json={"content": "注意力机制如何聚合上下文？", "language": "en"},
     )
     assert response.status_code == 201
     answer = response.get_json()["data"]["assistant_message"]
     assert answer["evidence_status"] == "sufficient"
     assert [item["chunk_id"] for item in answer["citations"]] == [source_id]
     assert captured["sources"][0]["source_id"] == source_id
+    assert captured["sources"][0]["declared_language"] == "zh-CN"
+    assert captured["response_language"] == "English"
     history = client.get(f"/api/v1/chat/sessions/{session_id}/messages").get_json()["data"]
     assert [item["role"] for item in history["items"]] == ["user", "assistant"]
     sessions = client.get("/api/v1/chat/sessions").get_json()["data"]
@@ -70,12 +72,53 @@ def test_failed_chat_call_does_not_store_half_a_conversation(client, monkeypatch
     assert client.get(f"/api/v1/chat/sessions/{session_id}/messages").get_json()["data"]["total"] == 0
 
 
+def test_english_weekly_report_uses_english_prompt_and_download_labels(client, monkeypatch):
+    captured = {}
+
+    def fake_chat_json(_self, messages, **_options):
+        captured.update(json.loads(messages[1]["content"]))
+        return {
+            "title": "Weekly Learning Report",
+            "summary": "No learning activity was recorded during this period.",
+            "learned": [],
+            "weak_points": [],
+            "next_week_suggestions": ["Upload a course material."],
+        }
+
+    monkeypatch.setattr("app.services.report_service.LLMClient.chat_json", fake_chat_json)
+    today = datetime.now(ZoneInfo("UTC")).date().isoformat()
+    response = client.post(
+        "/api/v1/weekly-reports",
+        json={
+            "request_id": str(uuid4()),
+            "period_type": "custom",
+            "date_from": today,
+            "date_to": today,
+            "timezone": "UTC",
+            "language": "en",
+        },
+    )
+    assert response.status_code == 202
+    report_id = response.get_json()["data"]["report_id"]
+    report = client.get(f"/api/v1/weekly-reports/{report_id}").get_json()["data"]
+    assert report["language"] == "en"
+    assert captured["response_language"] == "English"
+    assert captured["task"].startswith("Generate a learning report")
+    markdown = client.get(f"/api/v1/weekly-reports/{report_id}/download").get_data(as_text=True)
+    assert "## Learning data" in markdown
+    assert "## Next steps" in markdown
+
+
 def test_assessment_generation_grading_history_and_weekly_report(app, client, monkeypatch):
     uploaded = _upload(client)
+    assessment_inputs = []
+    grading_inputs = []
+    report_inputs = []
 
     def fake_chat_json(_self, messages, **_options):
         payload = json.loads(messages[1]["content"])
         if "question_counts" in payload:
+            assessment_inputs.append(payload)
             source = payload["documents"][0]["sources"][0]
             types = ["single_choice"] * 3 + ["true_false", "short_answer"]
             difficulties = ["easy", "easy", "medium", "medium", "hard"]
@@ -111,6 +154,7 @@ def test_assessment_generation_grading_history_and_weekly_report(app, client, mo
                 )
             return {"status": "ok", "reason": "", "questions": questions}
         if "questions" in payload:
+            grading_inputs.append(payload)
             results = []
             for question in payload["questions"]:
                 score = question["objective_score"] if question["objective_score"] is not None else 0.5
@@ -125,6 +169,7 @@ def test_assessment_generation_grading_history_and_weekly_report(app, client, mo
                     }
                 )
             return {"status": "ok", "reason": "", "results": results}
+        report_inputs.append(payload)
         return {
             "title": "本周学习报告",
             "summary": "完成资料学习与测评。",
@@ -142,12 +187,16 @@ def test_assessment_generation_grading_history_and_weekly_report(app, client, mo
             "request_id": str(uuid4()),
             "material_ids": [uploaded["material_id"]],
             "question_counts": {"single_choice": 3, "true_false": 1, "short_answer": 1},
+            "language": "en",
         },
     )
     assert create.status_code == 202
     assessment_id = create.get_json()["data"]["assessment_id"]
     detail = client.get(f"/api/v1/assessments/{assessment_id}").get_json()["data"]
     assert detail["status"] == "ready"
+    assert detail["language"] == "en"
+    assert assessment_inputs[0]["response_language"] == "English"
+    assert assessment_inputs[0]["documents"][0]["declared_language"] == "zh-CN"
     assert [item["difficulty"] for item in detail["questions"]] == ["easy", "easy", "medium", "medium", "hard"]
     assert detail["questions"][0]["options"] == {
         "A": "选项 A",
@@ -155,7 +204,7 @@ def test_assessment_generation_grading_history_and_weekly_report(app, client, mo
         "C": "选项 C",
         "D": "选项 D",
     }
-    assert detail["questions"][3]["options"] == {"A": "正确", "B": "错误"}
+    assert detail["questions"][3]["options"] == {"A": "True", "B": "False"}
     assert all("correct_answer" not in item for item in detail["questions"])
 
     answers = []
@@ -174,11 +223,14 @@ def test_assessment_generation_grading_history_and_weekly_report(app, client, mo
     assert submitted.status_code == 202
     result = client.get(f"/api/v1/assessments/{assessment_id}/result").get_json()["data"]
     assert result["status"] == "graded"
+    assert result["language"] == "en"
+    assert grading_inputs[0]["response_language"] == "English"
     assert result["total_score"] == 4.5
     assert result["duration_seconds"] == 42
     assert result["questions"][0]["sources"][0]["excerpt"] == "注意力机制会根据相关性权重聚合上下文信息。"
     history = client.get("/api/v1/assessments?status=graded").get_json()["data"]
     assert history["total"] == 1
+    assert history["items"][0]["language"] == "en"
     assert history["items"][0]["score_rate"] == 90.0
 
     material_detail = client.get(f"/api/v1/materials/{uploaded['material_id']}").get_json()["data"]
@@ -221,6 +273,8 @@ def test_assessment_generation_grading_history_and_weekly_report(app, client, mo
     report_id = report_response.get_json()["data"]["report_id"]
     report = client.get(f"/api/v1/weekly-reports/{report_id}").get_json()["data"]
     assert report["status"] == "ready"
+    assert report["language"] == "zh-CN"
+    assert report_inputs[0]["response_language"] == "Simplified Chinese"
     assert report["statistics"] == {
         "uploads_count": 1,
         "questions_count": 0,

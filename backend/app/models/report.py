@@ -15,6 +15,7 @@ class WeeklyReport(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     date_from = db.Column(db.Date, nullable=False)
     date_to = db.Column(db.Date, nullable=False)
     timezone = db.Column(db.String(128), nullable=False)
+    language = db.Column(db.String(8), nullable=False, default="zh-CN", server_default="zh-CN")
     status = db.Column(report_status, nullable=False, default="generating")
     error_message = db.Column(db.Text, nullable=True)
     data_cutoff_at = db.Column(db.DateTime(timezone=True), nullable=True)

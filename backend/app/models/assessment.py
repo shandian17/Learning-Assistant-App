@@ -31,6 +31,7 @@ class Assessment(UUIDPrimaryKeyMixin, CreatedAtMixin, db.Model):
 
     request_id = db.Column(db.String(36), nullable=False, unique=True, default=new_uuid)
     payload_hash = db.Column(db.String(64), nullable=False, default="")
+    language = db.Column(db.String(8), nullable=False, default="zh-CN", server_default="zh-CN")
     status = db.Column(assessment_status, nullable=False, default="generating")
     question_counts_json = db.Column(db.JSON, nullable=False, default=dict)
     error_message = db.Column(db.Text, nullable=True)

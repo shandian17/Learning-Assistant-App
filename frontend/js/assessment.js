@@ -2,9 +2,10 @@
 window.assessment = (() => {
   const $ = id => document.getElementById(id);
   const api = window.api.assessments;
-  const typeNames = { single_choice: '选择', true_false: '判断', short_answer: '简答' };
-  const difficultyNames = { easy: '简单', medium: '中等', hard: '困难' };
-  const trueFalseOptions = Object.freeze({ A: '正确', B: '错误' });
+  const t = window.i18n.t;
+  const typeNames = { single_choice: t('选择'), true_false: t('判断'), short_answer: t('简答') };
+  const difficultyNames = { easy: t('简单'), medium: t('中等'), hard: t('困难') };
+  const trueFalseOptions = Object.freeze({ A: t('正确'), B: t('错误') });
   const distributions = {
     5: { single_choice: 3, true_false: 1, short_answer: 1 },
     8: { single_choice: 4, true_false: 2, short_answer: 2 },
@@ -40,13 +41,13 @@ window.assessment = (() => {
   }
 
   function durationText(seconds) {
-    if (!Number.isFinite(seconds) || seconds < 0) return '未记录';
+    if (!Number.isFinite(seconds) || seconds < 0) return t('未记录');
     const value = Math.floor(seconds);
     return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
   }
 
   function scopeText(scope) {
-    return Array.isArray(scope) ? scope.map(item => typeof item === 'string' ? item : item.filename).filter(Boolean).join('、') : '';
+    return Array.isArray(scope) ? scope.map(item => typeof item === 'string' ? item : item.filename).filter(Boolean).join(window.i18n.language === 'en' ? ', ' : '、') : '';
   }
 
   function optionObject(value, type) {
@@ -55,15 +56,15 @@ window.assessment = (() => {
     let parsed = value;
     if (typeof parsed === 'string') {
       try { parsed = JSON.parse(parsed); }
-      catch { throw new Error('选择题选项不是合法 JSON，请重新获取。'); }
+      catch { throw new Error(t('选择题选项不是合法 JSON，请重新获取。')); }
     }
     if (Array.isArray(parsed)) {
       parsed = Object.fromEntries(parsed.map(option => [option?.id, option?.text]));
     }
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('选择题选项格式不正确，请重新获取。');
-    if (Object.values(parsed).some(text => typeof text !== 'string')) throw new Error('选择题选项内容格式不正确，请重新获取。');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(t('选择题选项格式不正确，请重新获取。'));
+    if (Object.values(parsed).some(text => typeof text !== 'string')) throw new Error(t('选择题选项内容格式不正确，请重新获取。'));
     const options = Object.fromEntries(Object.entries(parsed).map(([id, text]) => [String(id), text]));
-    if (!['A', 'B', 'C', 'D'].every(id => Object.hasOwn(options, id)) || Object.keys(options).length !== 4 || Object.values(options).some(text => !text.trim())) throw new Error('选择题必须包含 A、B、C、D 四个选项。');
+    if (!['A', 'B', 'C', 'D'].every(id => Object.hasOwn(options, id)) || Object.keys(options).length !== 4 || Object.values(options).some(text => !text.trim())) throw new Error(t('选择题必须包含 A、B、C、D 四个选项。'));
     return Object.fromEntries(['A', 'B', 'C', 'D'].map(id => [id, options[id]]));
   }
 
@@ -79,13 +80,13 @@ window.assessment = (() => {
     $('assessment-settings').disabled = generating;
     $('assessment-start').disabled = stage !== 'setup' || busy || sourcesLoading || !selectedIds().length;
     $('assessment-start').classList.toggle('is-loading', generating && busy);
-    $('assessment-start').textContent = generating ? (busy ? '正在生成测试题...' : '等待继续生成') : '开始测试 ↗';
+    $('assessment-start').textContent = generating ? (busy ? t('正在生成测试题...') : t('等待继续生成')) : t('开始测试 ↗');
     $('assessment-start').setAttribute('aria-busy', String(generating && busy));
     const locked = stage !== 'answer' || busy || confirming;
     $('assessment-questions').querySelectorAll('fieldset').forEach(fieldset => { fieldset.disabled = locked; });
     $('assessment-submit').disabled = locked;
     $('assessment-abandon').disabled = locked;
-    $('assessment-submit').textContent = stage === 'grading' ? (busy ? '正在出结果...' : '等待获取结果') : '提交答案';
+    $('assessment-submit').textContent = stage === 'grading' ? (busy ? t('正在出结果...') : t('等待获取结果')) : t('提交答案');
     $('assessment-submit').classList.toggle('is-loading', stage === 'grading' && busy);
     $('assessment-submit').setAttribute('aria-busy', String(stage === 'grading' && busy));
     $('assessment-recover').disabled = busy;
@@ -127,7 +128,7 @@ window.assessment = (() => {
       $('assessment-error').hidden = false;
       recovery = error.terminal ? null : error.recover || action;
       $('assessment-recover').hidden = !recovery;
-      $('assessment-recover').textContent = error.recoverLabel || retryLabel || '重试';
+      $('assessment-recover').textContent = error.recoverLabel || retryLabel || t('重试');
     } finally {
       busy = false;
       controls();
@@ -153,9 +154,9 @@ window.assessment = (() => {
         label.append(input, element('span', '', item.filename));
         $('assessment-sources').append(label);
       }
-      if (!ready.length) $('assessment-sources').append(element('p', 'subtle', '暂无可用资料，请先在资料库上传并完成解析。'));
+      if (!ready.length) $('assessment-sources').append(element('p', 'subtle', t('暂无可用资料，请先在资料库上传并完成解析。')));
     } catch (error) {
-      $('assessment-sources').replaceChildren(element('p', 'subtle', `读取资料失败：${error.message}`));
+      $('assessment-sources').replaceChildren(element('p', 'subtle', t('读取资料失败：{message}', { message: error.message })));
     } finally {
       sourcesLoading = false;
       $('assessment-refresh-sources').disabled = false;
@@ -170,32 +171,32 @@ window.assessment = (() => {
       if (data?.status === 'generation_failed') {
         setStage('setup');
         assessmentId = null;
-        const error = new Error(data.error_message || '题目生成失败，请调整资料后重新开始。');
+        const error = new Error(window.i18n.message(data.error_message, '题目生成失败，请调整资料后重新开始。'));
         error.terminal = true;
         throw error;
       }
       if (data?.status === 'grading_failed') {
-        const error = new Error(data.error_message || '评分失败，原答案已保留，可重新评分。');
+        const error = new Error(window.i18n.message(data.error_message, '评分失败，原答案已保留，可重新评分。'));
         error.recover = retryGrading;
-        error.recoverLabel = '重新评分';
+        error.recoverLabel = t('重新评分');
         throw error;
       }
-      if (data?.status !== pendingStatus) throw new Error('后台返回的测评状态不正确，请重新获取。');
+      if (data?.status !== pendingStatus) throw new Error(t('后台返回的测评状态不正确，请重新获取。'));
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
-    throw new Error('后台仍在处理中，可继续获取；不会重复创建试卷或提交答案。');
+    throw new Error(t('后台仍在处理中，可继续获取；不会重复创建试卷或提交答案。'));
   }
 
   function validateQuestions(data) {
     const expected = createPayload.question_counts;
-    if (!Array.isArray(data.questions) || data.questions.length !== Object.values(expected).reduce((sum, value) => sum + value, 0)) throw new Error('返回题数与所选题数不一致，请重新获取。');
+    if (!Array.isArray(data.questions) || data.questions.length !== Object.values(expected).reduce((sum, value) => sum + value, 0)) throw new Error(t('返回题数与所选题数不一致，请重新获取。'));
     const ids = new Set();
     const normalized = data.questions.map(question => ({ ...question, options: optionObject(question.options, question.type) }));
     for (const question of normalized) {
-      if (!question.id || ids.has(question.id) || !Object.hasOwn(typeNames, question.type) || typeof question.stem !== 'string' || question.max_score !== 1) throw new Error('试题格式不完整，请重新获取。');
+      if (!question.id || ids.has(question.id) || !Object.hasOwn(typeNames, question.type) || typeof question.stem !== 'string' || question.max_score !== 1) throw new Error(t('试题格式不完整，请重新获取。'));
       ids.add(question.id);
     }
-    for (const type of Object.keys(expected)) if (normalized.filter(question => question.type === type).length !== expected[type]) throw new Error('试题题型数量不符合本次设置，请重新获取。');
+    for (const type of Object.keys(expected)) if (normalized.filter(question => question.type === type).length !== expected[type]) throw new Error(t('试题题型数量不符合本次设置，请重新获取。'));
     return normalized;
   }
 
@@ -207,7 +208,7 @@ window.assessment = (() => {
         if ([400, 404, 415, 422].includes(error.status)) { error.terminal = true; setStage('setup'); }
         throw error;
       }
-      if (!created?.assessment_id) throw new Error('未收到测评编号，请重试确认本次生成结果。');
+      if (!created?.assessment_id) throw new Error(t('未收到测评编号，请重试确认本次生成结果。'));
       assessmentId = created.assessment_id;
     }
     const data = await poll(() => api.get(assessmentId), 'generating', 'ready');
@@ -228,8 +229,8 @@ window.assessment = (() => {
   function tick() { $('assessment-timer').textContent = durationText(stoppedDuration ?? Math.floor((Date.now() - startedAt) / 1000)); }
   function updateProgress(index) {
     const completed = questions.filter(answered).length;
-    if (index !== undefined) $('assessment-current').textContent = `第 ${index + 1} / ${questions.length} 题`;
-    $('assessment-answered').textContent = `已答 ${completed} / ${questions.length}`;
+    if (index !== undefined) $('assessment-current').textContent = t('第 {current} / {total} 题', { current: index + 1, total: questions.length });
+    $('assessment-answered').textContent = t('已答 {completed} / {total}', { completed, total: questions.length });
     $('assessment-progress').max = questions.length;
     $('assessment-progress').value = completed;
   }
@@ -239,15 +240,15 @@ window.assessment = (() => {
     questions.forEach((question, index) => {
       const card = element('article', 'panel question-card');
       const meta = element('div', 'question-meta');
-      meta.append(element('span', 'subtle', `QUESTION ${String(index + 1).padStart(2, '0')}`), element('span', 'tag', typeNames[question.type]), element('span', 'difficulty-tag', difficultyNames[question.difficulty] || '难度未标注'));
+      meta.append(element('span', 'subtle', `QUESTION ${String(index + 1).padStart(2, '0')}`), element('span', 'tag', typeNames[question.type]), element('span', 'difficulty-tag', difficultyNames[question.difficulty] || t('难度未标注')));
       const fieldset = document.createElement('fieldset');
       const legend = element('legend', 'question-stem', `${index + 1}. ${question.stem}`);
       fieldset.append(legend);
       if (question.type === 'short_answer') {
         const textarea = element('textarea', 'short-answer');
         textarea.rows = 5;
-        textarea.placeholder = '用自己的话写下你的理解…';
-        textarea.setAttribute('aria-label', `第 ${index + 1} 题简答`);
+        textarea.placeholder = t('用自己的话写下你的理解…');
+        textarea.setAttribute('aria-label', t('第 {number} 题简答', { number: index + 1 }));
         textarea.addEventListener('input', () => { answers.set(question.id, textarea.value); updateProgress(index); });
         fieldset.append(textarea);
       } else {
@@ -292,7 +293,7 @@ window.assessment = (() => {
   async function submit() {
     if (!submissionAccepted) {
       const response = await api.submit(assessmentId, submitPayload);
-      if (!response?.submission_id) throw new Error('尚未确认提交结果，可使用原提交重试。');
+      if (!response?.submission_id) throw new Error(t('尚未确认提交结果，可使用原提交重试。'));
       submissionAccepted = true;
     }
     await obtainResult();
@@ -313,8 +314,8 @@ window.assessment = (() => {
   }
 
   function answerText(question, value) {
-    if (value === null || value === undefined || value === '') return '未作答';
-    if (question.type === 'true_false') return value === true ? '正确' : value === false ? '错误' : String(value);
+    if (value === null || value === undefined || value === '') return t('未作答');
+    if (question.type === 'true_false') return value === true ? t('正确') : value === false ? t('错误') : String(value);
     if (question.type === 'single_choice') {
       const option = question.options?.[value];
       return option ? `${value}. ${option}` : String(value);
@@ -326,24 +327,24 @@ window.assessment = (() => {
     const list = Array.isArray(result.questions)
       ? result.questions.map(question => ({ ...question, options: optionObject(question.options, question.type) }))
       : result.questions;
-    if (!Array.isArray(list) || !list.length || !Number.isFinite(result.total_score) || result.max_score !== list.length || new Set(list.map(question => question.id)).size !== list.length || list.some(question => !question.id || typeof question.stem !== 'string' || typeof question.feedback !== 'string' || !Object.hasOwn(question, 'correct_answer') || !Object.hasOwn(typeNames, question.type) || !(question.type === 'short_answer' ? [0, .5, 1] : [0, 1]).includes(question.score)) || list.reduce((sum, question) => sum + question.score, 0) !== result.total_score) throw new Error('成绩数据不完整或不一致，请重新获取。');
+    if (!Array.isArray(list) || !list.length || !Number.isFinite(result.total_score) || result.max_score !== list.length || new Set(list.map(question => question.id)).size !== list.length || list.some(question => !question.id || typeof question.stem !== 'string' || typeof question.feedback !== 'string' || !Object.hasOwn(question, 'correct_answer') || !Object.hasOwn(typeNames, question.type) || !(question.type === 'short_answer' ? [0, .5, 1] : [0, 1]).includes(question.score)) || list.reduce((sum, question) => sum + question.score, 0) !== result.total_score) throw new Error(t('成绩数据不完整或不一致，请重新获取。'));
     const full = list.filter(question => question.score === 1).length;
     const partial = list.filter(question => question.score === .5).length;
     $('assessment-correct').textContent = full;
     $('assessment-partial').textContent = partial;
     $('assessment-wrong').textContent = list.length - full - partial;
     $('assessment-duration').textContent = durationText(result.duration_seconds ?? localDuration);
-    $('assessment-max-score').textContent = `/ ${result.max_score} 分`;
+    $('assessment-max-score').textContent = t('/ {score} 分', { score: result.max_score });
     $('assessment-result-scope').textContent = scopeText(result.material_scope || (localDuration !== null ? resultScope : []));
-    $('assessment-score-chart').setAttribute('aria-label', `得分 ${result.total_score}，满分 ${result.max_score}`);
+    $('assessment-score-chart').setAttribute('aria-label', t('得分 {score}，满分 {maximum}', { score: result.total_score, maximum: result.max_score }));
     $('assessment-review').replaceChildren();
     list.forEach((question, index) => {
       const card = element('details', 'panel review-card');
       const summary = document.createElement('summary');
-      summary.append(element('span', '', `第 ${index + 1} 题`), element('span', 'tag', typeNames[question.type]), element('span', '', question.stem), element('span', 'review-score', ` · ${question.score} / 1 分`));
+      summary.append(element('span', '', t('第 {number} 题', { number: index + 1 })), element('span', 'tag', typeNames[question.type]), element('span', '', question.stem), element('span', 'review-score', t(' · {score} / 1 分', { score: question.score })));
       const content = element('div', 'review-content');
       const values = document.createElement('dl');
-      for (const [label, value] of [['正确答案', answerText(question, question.correct_answer)], ['自己的答案', answerText(question, question.answer)], ['AI 点评', question.feedback || '暂无点评']]) {
+      for (const [label, value] of [[t('正确答案'), answerText(question, question.correct_answer)], [t('自己的答案'), answerText(question, question.answer)], [t('AI 点评'), question.feedback || t('暂无点评')]]) {
         values.append(element('dt', '', label), element('dd', '', value));
       }
       content.append(values);
@@ -372,34 +373,34 @@ window.assessment = (() => {
     historyLoading = true;
     controls();
     $('assessment-history-message').hidden = false;
-    $('assessment-history-message').textContent = '正在读取历史记录…';
+    $('assessment-history-message').textContent = t('正在读取历史记录…');
     // 切页时移除旧页，避免旧记录被误认为新页。
     $('assessment-history-list').replaceChildren();
     try {
       const data = await api.history(historyPage);
-      if (!Array.isArray(data?.items) || !Number.isInteger(data.total) || data.total < 0) throw new Error('历史记录响应格式不正确');
+      if (!Array.isArray(data?.items) || !Number.isInteger(data.total) || data.total < 0) throw new Error(t('历史记录响应格式不正确'));
       historyTotal = data.total;
-      $('assessment-history-page').textContent = `第 ${historyPage} / ${Math.max(1, Math.ceil(historyTotal / 10))} 页`;
+      $('assessment-history-page').textContent = t('第 {current} / {total} 页', { current: historyPage, total: Math.max(1, Math.ceil(historyTotal / 10)) });
       $('assessment-history-message').hidden = Boolean(data.items.length);
-      $('assessment-history-message').textContent = '还没有完成的测评，完成后会在这里保留成绩。';
+      $('assessment-history-message').textContent = t('还没有完成的测评，完成后会在这里保留成绩。');
       for (const item of data.items) {
         const row = element('div', 'history-row');
         const info = document.createElement('div');
         const date = new Date(item.graded_at);
-        info.append(element('p', '', scopeText(item.material_scope) || '课程测评'), element('p', 'subtle', `${Number.isNaN(date.getTime()) ? '时间未记录' : date.toLocaleString('zh-CN')} · ${item.total_score} / ${item.max_score} 分 · ${durationText(item.duration_seconds)}`));
-        const button = element('button', 'button button-secondary button-small', '查看结果');
+        info.append(element('p', '', scopeText(item.material_scope) || t('课程测评')), element('p', 'subtle', t('{time} · {score} / {maximum} 分 · {duration}', { time: Number.isNaN(date.getTime()) ? t('时间未记录') : date.toLocaleString(window.i18n.locale), score: item.total_score, maximum: item.max_score, duration: durationText(item.duration_seconds) })));
+        const button = element('button', 'button button-secondary button-small', t('查看结果'));
         button.type = 'button';
         button.onclick = () => run(async () => {
           const result = await api.result(item.id);
-          if (result?.status !== 'graded') throw new Error('这份测评的结果暂不可用。');
+          if (result?.status !== 'graded') throw new Error(t('这份测评的结果暂不可用。'));
           renderResult(result);
           setStage('result');
           if (active) $('assessment-result').scrollIntoView({ block: 'start' });
-        }, '重新读取结果');
+        }, t('重新读取结果'));
         row.append(info, button);
         $('assessment-history-list').append(row);
       }
-    } catch (error) { $('assessment-history-message').textContent = `读取历史记录失败：${error.message}`; }
+    } catch (error) { $('assessment-history-message').textContent = t('读取历史记录失败：{message}', { message: error.message }); }
     finally { historyLoading = false; controls(); }
   }
 
@@ -422,21 +423,21 @@ window.assessment = (() => {
   $('assessment-setup').addEventListener('submit', event => {
     event.preventDefault();
     if (busy || stage !== 'setup' || !selectedIds().length) return;
-    createPayload = { request_id: crypto.randomUUID(), material_ids: selectedIds(), question_counts: { ...counts() } };
+    createPayload = { request_id: crypto.randomUUID(), material_ids: selectedIds(), question_counts: { ...counts() }, language: window.i18n.language };
     assessmentId = null;
     setStage('generating');
-    run(generate, '继续获取题目');
+    run(generate, t('继续获取题目'));
   });
   $('assessment-sources').addEventListener('change', controls);
   $('assessment-settings').addEventListener('change', () => {
     const mix = counts();
-    $('assessment-mix').textContent = `选择 ${mix.single_choice} 道 · 判断 ${mix.true_false} 道 · 简答 ${mix.short_answer} 道`;
+    $('assessment-mix').textContent = t('选择 {choice} 道 · 判断 {trueFalse} 道 · 简答 {shortAnswer} 道', { choice: mix.single_choice, trueFalse: mix.true_false, shortAnswer: mix.short_answer });
   });
   $('assessment-answer').addEventListener('submit', async event => {
     event.preventDefault();
     if (busy || confirming || stage !== 'answer') return;
     const unanswered = questions.filter(question => !answered(question)).length;
-    if (unanswered && !await confirmAction('还有题目未作答', `有 ${unanswered} 道题未作答，提交后这些题将计为 0 分。`, '仍然提交')) return;
+    if (unanswered && !await confirmAction(t('还有题目未作答'), t('有 {count} 道题未作答，提交后这些题将计为 0 分。', { count: unanswered }), t('仍然提交'))) return;
     stoppedDuration = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
     clearInterval(timer);
     tick();
@@ -447,11 +448,11 @@ window.assessment = (() => {
       duration_seconds: stoppedDuration
     };
     setStage('grading');
-    run(submit, '继续获取结果');
+    run(submit, t('继续获取结果'));
   });
   $('assessment-abandon').onclick = async () => {
     if (busy || confirming || stage !== 'answer') return;
-    if (await confirmAction('放弃本次测评？', '本次未提交的答案将清空，不会生成成绩。以前的测评记录仍然保留。', '放弃测评')) reset();
+    if (await confirmAction(t('放弃本次测评？'), t('本次未提交的答案将清空，不会生成成绩。以前的测评记录仍然保留。'), t('放弃测评'))) reset();
   };
   $('assessment-again').onclick = () => { if (!busy) reset(); };
   $('assessment-refresh-sources').onclick = loadSources;

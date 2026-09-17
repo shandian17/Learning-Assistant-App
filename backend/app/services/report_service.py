@@ -11,6 +11,7 @@ from ..models import (
 )
 from ..models.base import utc_now
 from .ai_prompts import CHAT_SYSTEM_PROMPT
+from .language import language_name
 from .llm_client import LLMClient
 
 
@@ -93,8 +94,14 @@ def generate_report_task(app, report_id: str) -> None:
                                 "feedback": answer.feedback,
                             }
                         )
+            task = (
+                "Generate a learning report from these records. Return valid JSON only with exactly these fields: title, summary, learned, weak_points, and next_week_suggestions. The first two are strings and the last three are string arrays. Do not return HTML. When there is no activity, state that there was no learning activity during this period. When there are questions but no assessments, do not infer mastery."
+                if report.language == "en"
+                else "根据以下学习记录生成周报。只返回合法 JSON，字段必须为 title、summary、learned、weak_points、next_week_suggestions；前两项为字符串，后三项为字符串数组，不返回 HTML。没有记录时明确写这段时间暂无学习记录；有提问但没有测评时不要推断掌握程度。"
+            )
             model_input = {
-                "task": "根据以下学习记录生成周报。只返回合法 JSON，字段必须为 title、summary、learned、weak_points、next_week_suggestions；前两项为字符串，后三项为字符串数组，不返回 HTML。没有记录时明确写这段时间暂无学习记录；有提问但没有测评时不要推断掌握程度。",
+                "response_language": language_name(report.language),
+                "task": task,
                 "period": {"date_from": report.date_from.isoformat(), "date_to": report.date_to.isoformat()},
                 "statistics": statistics,
                 "uploaded_materials": [item.original_filename for item in versions],

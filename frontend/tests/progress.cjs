@@ -20,6 +20,7 @@ const http = require('node:http');
   try {
     browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+    await page.addInitScript(() => localStorage.setItem('learning-assistant-language', 'zh-CN'));
     const pageErrors = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     const notes = new Map([['m1', '原有笔记'], ['m2', '这是一段很长的学习笔记。'.repeat(30)]]);

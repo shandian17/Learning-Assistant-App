@@ -20,6 +20,7 @@ const http = require('node:http');
   try {
     browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+    await page.addInitScript(() => localStorage.setItem('learning-assistant-language', 'zh-CN'));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const papers = new Map();
@@ -116,6 +117,7 @@ const http = require('node:http');
     await page.locator('#assessment-setup').evaluate(form => form.dispatchEvent(new Event('submit', { cancelable: true })));
     await page.locator('#assessment-answer:not([hidden])').waitFor();
     assert.equal(creates.length, 1);
+    assert.equal(creates[0].language, 'zh-CN');
     assert.deepEqual(creates[0].question_counts, { single_choice: 3, true_false: 1, short_answer: 1 });
     assert.equal(await page.locator('.question-card').count(), 5);
     assert.ok(!(await page.locator('#assessment-questions').innerText()).includes('SECRET_NOT_FOR_ANSWER_SCREEN'));

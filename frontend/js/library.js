@@ -1,6 +1,7 @@
 /* 资料库交互独立于路由；所有服务请求集中在 api.js。 */
 window.library = (() => {
   const $ = id => document.getElementById(id);
+  const t = window.i18n.t;
   const zone = $('upload-zone');
   const input = $('material-files');
   const rows = $('material-rows');
@@ -24,7 +25,7 @@ window.library = (() => {
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = '×';
-    close.setAttribute('aria-label', '关闭提示');
+    close.setAttribute('aria-label', t('关闭提示'));
     close.onclick = () => toast.remove();
     toast.append(text, close);
     $('notifications').append(toast);
@@ -41,12 +42,12 @@ window.library = (() => {
 
   function render() {
     rows.replaceChildren();
-    $('material-count').textContent = loaded ? `· ${items.length} 份` : '';
+    $('material-count').textContent = loaded ? t('· {count} 份', { count: items.length }) : '';
     $('material-table-wrap').hidden = !items.length;
     $('library-empty').hidden = Boolean(items.length);
     if (loaded && !items.length) {
-      $('library-empty-title').textContent = '还没有学习资料';
-      $('library-empty-description').textContent = '上传第一份课程资料，从这里开始积累。';
+      $('library-empty-title').textContent = t('还没有学习资料');
+      $('library-empty-description').textContent = t('上传第一份课程资料，从这里开始积累。');
     }
     for (const item of items) {
       const row = document.createElement('tr');
@@ -57,13 +58,13 @@ window.library = (() => {
       if (state === 'failed' && error) {
         const detail = document.createElement('p');
         detail.className = 'file-error';
-        detail.textContent = error;
+        detail.textContent = window.i18n.message(error, '资料解析失败，请重试。');
         filename.append(detail);
       }
       if (item.pending_version && item.current_version_id) {
         const note = document.createElement('p');
         note.className = 'file-note';
-        note.textContent = '当前显示新上传版本状态，原版本仍可使用';
+        note.textContent = t('当前显示新上传版本状态，原版本仍可使用');
         filename.append(note);
       }
       const type = document.createElement('td');
@@ -74,7 +75,7 @@ window.library = (() => {
       const status = document.createElement('td');
       const badge = document.createElement('span');
       badge.className = `material-status ${Object.hasOwn(statuses, state) ? state : ''}`;
-      badge.textContent = statuses[state] || '状态未知';
+      badge.textContent = Object.hasOwn(statuses, state) ? t(statuses[state]) : t('状态未知');
       status.append(badge);
       const actions = document.createElement('td');
       const group = document.createElement('div');
@@ -83,7 +84,7 @@ window.library = (() => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `button button-small ${action === 'delete' ? 'button-danger' : 'button-secondary'}`;
-        button.textContent = action === 'retry' ? '重试' : '删除';
+        button.textContent = action === 'retry' ? t('重试') : t('删除');
         button.setAttribute('aria-label', `${button.textContent} ${item.filename}`);
         button.disabled = busyIds.has(item.id) || uploading;
         button.onclick = () => actOnItem(item, action);
@@ -113,11 +114,11 @@ window.library = (() => {
         $('library-error').hidden = true;
         render();
       } catch (error) {
-        $('library-error').textContent = `读取资料失败：${error.message}${loaded ? '。当前显示上次读取的列表。' : ''}`;
+        $('library-error').textContent = t('读取资料失败：{message}{suffix}', { message: error.message, suffix: loaded ? t('。当前显示上次读取的列表。') : '' });
         $('library-error').hidden = false;
         if (!loaded) {
-          $('library-empty-title').textContent = '暂时无法读取资料';
-          $('library-empty-description').textContent = '请连接后台后点击“刷新列表”重试。';
+          $('library-empty-title').textContent = t('暂时无法读取资料');
+          $('library-empty-description').textContent = t('请连接后台后点击“刷新列表”重试。');
         }
       } finally {
         $('refresh-materials').disabled = false;
@@ -135,7 +136,7 @@ window.library = (() => {
   }
 
   function chooseDuplicate(filename) {
-    $('duplicate-description').textContent = `资料库中已存在“${filename}”，请选择如何处理。`;
+    $('duplicate-description').textContent = t('资料库中已存在“{filename}”，请选择如何处理。', { filename });
     dialog.returnValue = 'cancel';
     return new Promise(resolve => {
       dialog.addEventListener('close', () => resolve(dialog.returnValue), { once: true });
@@ -145,16 +146,16 @@ window.library = (() => {
 
   async function uploadOne(file) {
     const extension = file.name.trim().split('.').pop().toLowerCase();
-    if (!Object.hasOwn(types, extension)) throw new Error('格式不支持，请选择 PDF、PPT、Word、Markdown 或 TXT 文件');
-    if (!file.size) throw new Error('文件为空，请选择有内容的资料');
+    if (!Object.hasOwn(types, extension)) throw new Error(t('格式不支持，请选择 PDF、PPT、Word、Markdown 或 TXT 文件'));
+    if (!file.size) throw new Error(t('文件为空，请选择有内容的资料'));
     // 冲突时重新检查并重新询问，绝不默认覆盖已经变化的版本。
     for (;;) {
       const check = await window.api.materials.checkName(file.name);
-      if (!check || typeof check.duplicate !== 'boolean') throw new Error('同名检查响应格式不正确');
-      const choice = {};
+      if (!check || typeof check.duplicate !== 'boolean') throw new Error(t('同名检查响应格式不正确'));
+      const choice = { language: window.i18n.language };
       if (check.duplicate) {
         const existing = check.existing_material;
-        if (!existing?.id) throw new Error('无法读取同名资料信息，请刷新后重试');
+        if (!existing?.id) throw new Error(t('无法读取同名资料信息，请刷新后重试'));
         const action = await chooseDuplicate(file.name);
         if (!['replace', 'keep_both'].includes(action)) return false;
         choice.duplicate_action = action;
@@ -165,13 +166,13 @@ window.library = (() => {
       }
       try {
         const result = await window.api.materials.upload(file, choice);
-        if (!result?.material_id || !Object.hasOwn(statuses, result.status)) throw new Error('上传响应无法确认，请刷新列表核对，勿重复上传');
-        if (result.status === 'failed') notify(`“${file.name}”已上传，但解析失败，可在列表中重试。`, true);
-        else notify(`“${file.name}”上传成功${result.status === 'ready' ? '，解析完成。' : '，正在解析。'}`);
+        if (!result?.material_id || !Object.hasOwn(statuses, result.status)) throw new Error(t('上传响应无法确认，请刷新列表核对，勿重复上传'));
+        if (result.status === 'failed') notify(t('“{filename}”已上传，但解析失败，可在列表中重试。', { filename: file.name }), true);
+        else notify(t(result.status === 'ready' ? '“{filename}”上传成功，解析完成。' : '“{filename}”上传成功，正在解析。', { filename: file.name }));
         return true;
       } catch (error) {
         if (error.status === 409 && ['DUPLICATE_NAME', 'VERSION_CONFLICT'].includes(error.code)) {
-          notify('同名资料发生变化，请重新选择处理方式。', true);
+          notify(t('同名资料发生变化，请重新选择处理方式。'), true);
           continue;
         }
         throw error;
@@ -187,9 +188,9 @@ window.library = (() => {
     render();
     try {
       for (const [index, file] of Array.from(files).entries()) {
-        $('upload-status').textContent = `正在上传 ${index + 1} / ${files.length}：${file.name}`;
+        $('upload-status').textContent = t('正在上传 {current} / {total}：{filename}', { current: index + 1, total: files.length, filename: file.name });
         try { await uploadOne(file); }
-        catch (error) { notify(`“${file.name}”上传未完成：${error.message}`, true); }
+        catch (error) { notify(t('“{filename}”上传未完成：{message}', { filename: file.name, message: error.message }), true); }
         await refreshAfterMutation();
       }
     } finally {
@@ -197,7 +198,7 @@ window.library = (() => {
       zone.disabled = false;
       zone.removeAttribute('aria-busy');
       input.value = '';
-      $('upload-status').textContent = '点击此区域选择文件，可一次上传多份';
+      $('upload-status').textContent = t('点击此区域选择文件，可一次上传多份');
       render();
     }
   }
@@ -209,15 +210,15 @@ window.library = (() => {
     try {
       if (action === 'retry') {
         await window.api.materials.retry(item.id);
-        notify(`“${item.filename}”已提交重新解析。`);
+        notify(t('“{filename}”已提交重新解析。', { filename: item.filename }));
       } else {
         await window.api.materials.remove(item.id);
         items = items.filter(value => value.id !== item.id);
-        notify(`“${item.filename}”已删除。`);
+        notify(t('“{filename}”已删除。', { filename: item.filename }));
       }
       await refreshAfterMutation();
     } catch (error) {
-      notify(`${action === 'retry' ? '重试' : '删除'}失败：${error.message}`, true);
+      notify(t('{action}失败：{message}', { action: t(action === 'retry' ? '重试' : '删除'), message: error.message }), true);
     } finally {
       busyIds.delete(item.id);
       render();

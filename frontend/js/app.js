@@ -1,4 +1,5 @@
 (() => {
+  const t = window.i18n.t;
   const routes = { learn: '学习', library: '资料库', assessment: '测评', progress: '进度', reports: '报告' };
   const pages = document.querySelectorAll('[data-page]');
   const links = document.querySelectorAll('[data-route]');
@@ -23,7 +24,7 @@
       if (link.dataset.route === route) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
     });
-    document.title = `${routes[route]} · 大模型学习助手`;
+    document.title = `${t(routes[route])} · ${t('大模型学习助手')}`;
     window.learnPage.setActive(route === 'learn');
     window.library.setActive(route === 'library');
     window.assessment.setActive(route === 'assessment');
@@ -33,8 +34,8 @@
 
   function showConnection(connected) {
     status.classList.toggle('is-connected', connected);
-    statusLabel.textContent = connected ? '后台已连接' : '后台未连接';
-    status.title = connected ? '后台接口连接正常' : '无法连接后台，稍后将自动重试';
+    statusLabel.textContent = connected ? t('后台已连接') : t('后台未连接');
+    status.title = connected ? t('后台接口连接正常') : t('无法连接后台，稍后将自动重试');
   }
 
   async function refreshConnection() {

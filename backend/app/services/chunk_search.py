@@ -58,6 +58,7 @@ def search_relevant_chunks(material_ids: list[str], query: str, limit: int = 12)
                         "material_id": material.id,
                         "version_id": version.id,
                         "filename": material.filename,
+                        "declared_language": version.language,
                         "locator": chunk.locator_json or {},
                         "text": chunk.text,
                     },

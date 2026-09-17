@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/pages.css">
+  <script src="js/i18n.js" defer></script>
   <script src="js/api.js" defer></script>
   <script src="js/learn.js" defer></script>
   <script src="js/library.js" defer></script>
@@ -30,8 +31,11 @@
         <a href="#progress" data-route="progress">进度</a>
         <a href="#reports" data-route="reports">报告</a>
       </nav>
-      <div id="connection-status" class="connection" role="status" aria-live="polite" title="正在检测后台连接">
-        <span class="connection-dot" aria-hidden="true"></span><span id="connection-label">连接检测中</span>
+      <div class="header-tools">
+        <button id="language-toggle" class="language-toggle" type="button"><span data-language-option="zh-CN">中文</span><span aria-hidden="true">/</span><span data-language-option="en">EN</span></button>
+        <div id="connection-status" class="connection" role="status" aria-live="polite" title="正在检测后台连接">
+          <span class="connection-dot" aria-hidden="true"></span><span id="connection-label">连接检测中</span>
+        </div>
       </div>
     </div>
   </header>

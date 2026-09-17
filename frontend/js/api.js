@@ -1,6 +1,32 @@
 /* 默认与后台同源；分开部署时修改 index.html 中的 api-base。 */
 window.api = (() => {
   const baseURL = document.querySelector('meta[name="api-base"]').content.replace(/\/$/, '');
+  const t = window.i18n.t;
+  const englishErrors = {
+    INVALID_ARGUMENT: 'The request contains invalid or missing information.',
+    UNSUPPORTED_FILE_TYPE: 'This file type is not supported.',
+    DUPLICATE_NAME: 'A material with this filename already exists.',
+    VERSION_CONFLICT: 'The material changed. Refresh and choose the replacement action again.',
+    EMPTY_FILE: 'The uploaded file is empty.',
+    FILE_SAVE_FAILED: 'The file could not be saved.',
+    FILE_TOO_LARGE: 'The uploaded file exceeds the size limit.',
+    NOT_FOUND: 'The requested resource was not found.',
+    DELETE_FAILED: 'The material could not be deleted.',
+    INVALID_STATUS: 'This action is not allowed in the current state.',
+    MATERIAL_NOT_READY: 'Some selected materials have not finished parsing.',
+    AI_UNAVAILABLE: 'The AI service is temporarily unavailable. Try again later.',
+    IDEMPOTENCY_CONFLICT: 'This request ID was already used with different information.',
+    ALREADY_SUBMITTED: 'This assessment has already been submitted.',
+    UNANSWERED_QUESTIONS: 'Some questions are still unanswered.',
+    REPORT_NOT_READY: 'The learning report is not ready yet.',
+    METHOD_NOT_ALLOWED: 'This request method is not allowed.',
+    INTERNAL_ERROR: 'The server encountered an internal error.'
+  };
+
+  function errorMessage(payload, status) {
+    if (window.i18n.language !== 'en') return payload?.error?.message || t('请求失败（{status}），请检查后台服务', { status });
+    return englishErrors[payload?.error?.code] || t('请求失败（{status}），请检查后台服务', { status });
+  }
 
   async function request(path, { method = 'GET', body, timeout = 5000 } = {}) {
     const controller = new AbortController();
@@ -9,7 +35,7 @@ window.api = (() => {
     try {
       const response = await fetch(`${baseURL}${path}`, {
         method,
-        headers: { Accept: 'application/json', ...(body !== undefined && !isForm ? { 'Content-Type': 'application/json' } : {}) },
+        headers: { Accept: 'application/json', 'Accept-Language': window.i18n.language, ...(body !== undefined && !isForm ? { 'Content-Type': 'application/json' } : {}) },
         body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
         signal: controller.signal,
         cache: 'no-store'
@@ -17,19 +43,19 @@ window.api = (() => {
       if (response.status === 204 && response.ok) return null;
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        const error = new Error(payload?.error?.message || `请求失败（${response.status}），请检查后台服务`);
+        const error = new Error(errorMessage(payload, response.status));
         error.status = response.status;
         error.code = payload?.error?.code;
         error.details = payload?.error?.details;
         throw error;
       }
       if (!payload || typeof payload !== 'object' || !Object.hasOwn(payload, 'data')) {
-        throw new Error('后台响应格式不正确');
+        throw new Error(t('后台响应格式不正确'));
       }
       return payload.data;
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('请求超时，操作结果暂无法确认，请刷新列表核对');
-      if (error instanceof TypeError) throw new Error('无法连接后台，请检查服务和网络后重试');
+      if (error.name === 'AbortError') throw new Error(t('请求超时，操作结果暂无法确认，请刷新列表核对'));
+      if (error instanceof TypeError) throw new Error(t('无法连接后台，请检查服务和网络后重试'));
       throw error;
     } finally {
       clearTimeout(timer);
@@ -51,12 +77,12 @@ window.api = (() => {
       const items = [];
       for (let page = 1; ; page += 1) {
         const data = await request(`/materials?page=${page}&page_size=100`);
-        if (!data || !Array.isArray(data.items) || !Number.isInteger(data.total) || data.total < 0) throw new Error('资料列表响应格式不正确');
+        if (!data || !Array.isArray(data.items) || !Number.isInteger(data.total) || data.total < 0) throw new Error(t('资料列表响应格式不正确'));
         const ids = new Set(items.map(item => item.id));
-        if (data.items.some(item => !item.id || ids.has(item.id))) throw new Error('资料列表分页异常，请刷新重试');
+        if (data.items.some(item => !item.id || ids.has(item.id))) throw new Error(t('资料列表分页异常，请刷新重试'));
         items.push(...data.items);
         if (items.length >= data.total) return items;
-        if (!data.items.length) throw new Error('资料列表不完整，请刷新重试');
+        if (!data.items.length) throw new Error(t('资料列表不完整，请刷新重试'));
       }
     },
     checkName: filename => request('/materials/check-name', { method: 'POST', body: { filename } }),
@@ -83,9 +109,9 @@ window.api = (() => {
   const chatPath = id => `/chat/sessions/${encodeURIComponent(id)}`;
   const chats = {
     list: page => request(`/chat/sessions?page=${page}&page_size=20`),
-    create: materialIds => request('/chat/sessions', { method: 'POST', body: { material_ids: materialIds } }),
+    create: materialIds => request('/chat/sessions', { method: 'POST', body: { material_ids: materialIds, language: window.i18n.language } }),
     messages: (id, page = 1) => request(`${chatPath(id)}/messages?page=${page}&page_size=100`),
-    send: (id, content) => request(`${chatPath(id)}/messages`, { method: 'POST', body: { content }, timeout: 390000 }),
+    send: (id, content) => request(`${chatPath(id)}/messages`, { method: 'POST', body: { content, language: window.i18n.language }, timeout: 390000 }),
     remove: id => request(chatPath(id), { method: 'DELETE' })
   };
 
@@ -94,17 +120,17 @@ window.api = (() => {
     for (let page = 1; ; page += 1) {
       const separator = path.includes('?') ? '&' : '?';
       const data = await request(`${path}${separator}page=${page}&page_size=100`);
-      if (!data || !Array.isArray(data.items) || !Number.isInteger(data.total) || data.total < 0) throw new Error('分页响应格式不正确');
+      if (!data || !Array.isArray(data.items) || !Number.isInteger(data.total) || data.total < 0) throw new Error(t('分页响应格式不正确'));
       const ids = new Set(items.map(item => item.id || item.knowledge_point_id || item.material_id));
       if (data.items.some(item => {
         const id = item.id || item.knowledge_point_id || item.material_id;
         if (!id || ids.has(id)) return true;
         ids.add(id);
         return false;
-      })) throw new Error('分页数据重复，请刷新重试');
+      })) throw new Error(t('分页数据重复，请刷新重试'));
       items.push(...data.items);
       if (items.length >= data.total) return items;
-      if (!data.items.length) throw new Error('分页数据不完整，请刷新重试');
+      if (!data.items.length) throw new Error(t('分页数据不完整，请刷新重试'));
     }
   }
 
@@ -126,16 +152,16 @@ window.api = (() => {
       let response;
       try {
         response = await fetch(`${baseURL}${reportPath(id)}/download`, {
-          headers: { Accept: 'text/markdown' },
+          headers: { Accept: 'text/markdown', 'Accept-Language': window.i18n.language },
           cache: 'no-store'
         });
       } catch (error) {
-        if (error instanceof TypeError) throw new Error('无法连接后台，请检查服务和网络后重试');
+        if (error instanceof TypeError) throw new Error(t('无法连接后台，请检查服务和网络后重试'));
         throw error;
       }
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(payload?.error?.message || `下载失败（${response.status}）`);
+        throw new Error(window.i18n.language === 'en' ? (englishErrors[payload?.error?.code] || t('下载失败（{status}）', { status: response.status })) : (payload?.error?.message || t('下载失败（{status}）', { status: response.status })));
       }
       return response.blob();
     }

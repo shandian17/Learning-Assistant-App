@@ -9,6 +9,7 @@ from ..models import Assessment, AssessmentAnswer, AssessmentMaterial, Assessmen
 from ..services.ai_tasks import enqueue_ai_task
 from ..services.assessment_service import generate_assessment_task, grade_submission_task, question_type_counts
 from ..services.chunk_search import load_ready_materials
+from ..services.language import normalize_language
 from .errors import APIError
 
 
@@ -18,6 +19,10 @@ bp = Blueprint("assessments", __name__)
 @bp.post("/assessments")
 def create_assessment():
     payload = request.get_json(silent=True) or {}
+    try:
+        language = normalize_language(payload.get("language"))
+    except ValueError as error:
+        raise APIError(400, "INVALID_ARGUMENT", "language 必须是 zh-CN 或 en") from error
     request_id = _uuid(payload.get("request_id"), "request_id")
     material_ids = payload.get("material_ids")
     if not isinstance(material_ids, list) or not all(isinstance(item, str) for item in material_ids):
@@ -35,7 +40,7 @@ def create_assessment():
         raise APIError(400, "INVALID_ARGUMENT", str(error)) from error
     if counts != expected:
         raise APIError(400, "INVALID_ARGUMENT", "题型配比必须约为 1/4 判断、1/2 选择，其余简答", expected)
-    normalized = {"material_ids": material_ids, "question_counts": counts}
+    normalized = {"material_ids": material_ids, "question_counts": counts, "language": language}
     payload_hash = _payload_hash(normalized)
     existing = db.session.scalar(db.select(Assessment).where(Assessment.request_id == request_id))
     if existing:
@@ -44,7 +49,12 @@ def create_assessment():
         return jsonify({"data": {"assessment_id": existing.id, "status": existing.status}}), 202
 
     materials = load_ready_materials(material_ids)
-    assessment = Assessment(request_id=request_id, payload_hash=payload_hash, question_counts_json=counts)
+    assessment = Assessment(
+        request_id=request_id,
+        payload_hash=payload_hash,
+        question_counts_json=counts,
+        language=language,
+    )
     db.session.add(assessment)
     db.session.flush()
     for material in materials:
@@ -192,6 +202,7 @@ def _assessment_detail(assessment: Assessment) -> dict:
         "status": assessment.status,
         "material_scope": _material_scope(assessment),
         "question_counts": assessment.question_counts_json,
+        "language": assessment.language,
         "questions": [],
         "error_message": assessment.error_message,
         "created_at": assessment.created_at.isoformat(),
@@ -224,6 +235,7 @@ def _assessment_history(assessment: Assessment) -> dict:
         "duration_seconds": submission.duration_seconds if submission else None,
         "material_scope": _material_scope(assessment),
         "status": assessment.status,
+        "language": assessment.language,
         "total_score": total_score,
         "max_score": max_score,
         "score_rate": round(total_score / max_score * 100, 1) if total_score is not None and max_score else None,
@@ -234,6 +246,7 @@ def _result_data(assessment: Assessment) -> dict:
     submission = assessment.submission
     base = {
         "status": assessment.status,
+        "language": assessment.language,
         "total_score": None,
         "max_score": float(submission.max_score) if submission else len(assessment.questions),
         "score_rate": None,
@@ -309,7 +322,11 @@ def _payload_hash(payload: dict) -> str:
 
 def _public_options(question) -> dict[str, str]:
     if question.type == "true_false":
-        return {"A": "正确", "B": "错误"}
+        return (
+            {"A": "True", "B": "False"}
+            if question.assessment.language == "en"
+            else {"A": "正确", "B": "错误"}
+        )
     if question.type == "short_answer":
         return {}
     value = question.options_json

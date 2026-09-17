@@ -21,6 +21,7 @@ const http = require('node:http');
     const chrome = process.env.BROWSER_PATH;
     browser = await chromium.launch(chrome ? { executablePath: chrome, headless: true } : { headless: true });
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await page.addInitScript(() => localStorage.setItem('learning-assistant-language', 'zh-CN'));
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     let items = [
@@ -77,6 +78,8 @@ const http = require('node:http');
     await waitUploadDone();
     assert.match(await page.locator('#notifications').innerText(), /上传成功/);
     assert.ok(uploads.at(-1).includes('name="file"'));
+    assert.ok(uploads.at(-1).includes('name="language"'));
+    assert.ok(uploads.at(-1).includes('zh-CN'));
     for (const name of ['幻灯片.ppt', '幻灯片.pptx', '文档.doc', '文档.docx', '笔记.md', '笔记.markdown', '笔记.txt']) {
       await page.locator('#material-files').setInputFiles(file(name)); await waitUploadDone();
     }

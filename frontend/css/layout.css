@@ -2,6 +2,7 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .site-header { border-bottom: 1px solid var(--border); background: var(--bg); }
 .header-inner { max-width: 1344px; min-height: 88px; padding: 0 40px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
 .primary-nav { display: flex; align-self: stretch; gap: 12px; }
+.header-tools { display: flex; align-items: center; gap: 18px; }
 .main-shell { width: 100%; max-width: 1264px; margin: 0 auto; padding: 46px 40px 56px; flex: 1; }
 .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
 .learning-grid { display: grid; grid-template-columns: 268px minmax(0, 1fr); gap: 20px; }
@@ -22,6 +23,7 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
   .header-inner { padding-inline: 18px; }
   .main-shell { padding: 28px 18px; }
   .primary-nav { gap: 0; justify-content: space-between; }
+  .header-tools { gap: 10px; }
   .page-heading { align-items: flex-start; flex-direction: column; gap: 16px; }
   .learning-grid, .stats-grid { grid-template-columns: 1fr; }
   .stats-grid { gap: 12px; }

@@ -2,6 +2,7 @@
 window.reportsPage = (() => {
   const $ = id => document.getElementById(id);
   const api = window.api.reports;
+  const t = window.i18n.t;
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   let active = false;
   let mode = 'idle';
@@ -42,12 +43,12 @@ window.reportsPage = (() => {
 
   function displayDate(value) {
     const date = parseDate(value);
-    return date ? date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : value;
+    return date ? date.toLocaleDateString(window.i18n.locale, { year: 'numeric', month: 'long', day: 'numeric' }) : value;
   }
 
   function displayTime(value) {
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '时间未记录' : date.toLocaleString('zh-CN');
+    return Number.isNaN(date.getTime()) ? t('时间未记录') : date.toLocaleString(window.i18n.locale);
   }
 
   function rate(value) {
@@ -67,7 +68,7 @@ window.reportsPage = (() => {
     const custom = range.period_type === 'custom';
     $('report-custom-range').hidden = !custom;
     $('report-week-range').hidden = custom;
-    $('report-week-range').textContent = `本周：${displayDate(thisWeek().from)}—${displayDate(thisWeek().to)}`;
+    $('report-week-range').textContent = t('本周：{from}—{to}', { from: displayDate(thisWeek().from), to: displayDate(thisWeek().to) });
     $('report-date-from').max = $('report-date-to').value;
     $('report-date-to').min = $('report-date-from').value;
   }
@@ -76,7 +77,7 @@ window.reportsPage = (() => {
     $('report-settings').disabled = mode === 'generating';
     $('report-generate').disabled = busy || viewing;
     $('report-generate').classList.toggle('is-loading', busy && mode === 'generating');
-    $('report-generate').textContent = busy && mode === 'generating' ? '正在生成学习报告...' : mode === 'generating' ? '继续获取报告' : '生成报告 ✦';
+    $('report-generate').textContent = busy && mode === 'generating' ? t('正在生成学习报告...') : mode === 'generating' ? t('继续获取报告') : t('生成报告 ✦');
     $('report-generate').setAttribute('aria-busy', String(busy && mode === 'generating'));
     $('report-download').disabled = !currentReport || busy || viewing;
     $('report-history-refresh').disabled = historyLoading || busy || viewing;
@@ -102,7 +103,7 @@ window.reportsPage = (() => {
     const stats = report?.statistics;
     const content = report?.content;
     const average = stats?.average_score_rate;
-    if (!report?.report_id || report.status !== 'ready' || !parseDate(report.date_from) || !parseDate(report.date_to) || report.date_from > report.date_to || typeof report.timezone !== 'string' || !report.timezone || typeof report.generated_at !== 'string' || typeof report.data_cutoff_at !== 'string' || !stats || ['uploads_count', 'questions_count', 'assessments_count'].some(key => !Number.isInteger(stats[key]) || stats[key] < 0) || !(average === null || Number.isFinite(average) && average >= 0 && average <= 100) || !content || typeof content.title !== 'string' || !content.title.trim() || typeof content.summary !== 'string' || !validStringList(content.learned) || !validStringList(content.weak_points) || !validStringList(content.next_week_suggestions)) throw new Error('报告数据格式不完整，请重新获取。');
+    if (!report?.report_id || report.status !== 'ready' || !parseDate(report.date_from) || !parseDate(report.date_to) || report.date_from > report.date_to || typeof report.timezone !== 'string' || !report.timezone || typeof report.generated_at !== 'string' || typeof report.data_cutoff_at !== 'string' || !stats || ['uploads_count', 'questions_count', 'assessments_count'].some(key => !Number.isInteger(stats[key]) || stats[key] < 0) || !(average === null || Number.isFinite(average) && average >= 0 && average <= 100) || !content || typeof content.title !== 'string' || !content.title.trim() || typeof content.summary !== 'string' || !validStringList(content.learned) || !validStringList(content.weak_points) || !validStringList(content.next_week_suggestions)) throw new Error(t('报告数据格式不完整，请重新获取。'));
   }
 
   function renderList(target, values, emptyText) {
@@ -122,12 +123,12 @@ window.reportsPage = (() => {
     $('report-question-count').textContent = report.statistics.questions_count;
     $('report-assessment-count').textContent = report.statistics.assessments_count;
     $('report-average-score').textContent = rate(report.statistics.average_score_rate);
-    $('report-summary').textContent = report.content.summary || '这段时间暂无学习记录。';
-    renderList($('report-learned'), report.content.learned, '暂无可归纳的学习内容。');
-    renderList($('report-weak-points'), report.content.weak_points, '暂无足够的测评数据判断薄弱知识点。');
-    renderList($('report-suggestions'), report.content.next_week_suggestions, '继续积累学习和测评记录。');
-    $('report-generated-at').textContent = `生成时间：${displayTime(report.generated_at)}`;
-    $('report-data-cutoff').textContent = `数据截止：${displayTime(report.data_cutoff_at)}`;
+    $('report-summary').textContent = report.content.summary || t('这段时间暂无学习记录。');
+    renderList($('report-learned'), report.content.learned, t('暂无可归纳的学习内容。'));
+    renderList($('report-weak-points'), report.content.weak_points, t('暂无足够的测评数据判断薄弱知识点。'));
+    renderList($('report-suggestions'), report.content.next_week_suggestions, t('继续积累学习和测评记录。'));
+    $('report-generated-at').textContent = t('生成时间：{value}', { value: displayTime(report.generated_at) });
+    $('report-data-cutoff').textContent = t('数据截止：{value}', { value: displayTime(report.data_cutoff_at) });
     controls();
   }
 
@@ -136,14 +137,14 @@ window.reportsPage = (() => {
       const report = await api.get(reportId);
       if (report?.status === 'ready') return report;
       if (report?.status === 'generation_failed') {
-        const error = new Error(report.error_message || '报告生成失败，请调整日期后重试。');
+        const error = new Error(window.i18n.message(report.error_message, '报告生成失败，请调整日期后重试。'));
         error.terminal = true;
         throw error;
       }
-      if (report?.status !== 'generating') throw new Error('后台返回的报告状态不正确，请继续获取。');
+      if (report?.status !== 'generating') throw new Error(t('后台返回的报告状态不正确，请继续获取。'));
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
-    throw new Error('报告仍在生成，可继续获取；不会重复创建报告。');
+    throw new Error(t('报告仍在生成，可继续获取；不会重复创建报告。'));
   }
 
   async function generateReport() {
@@ -154,7 +155,7 @@ window.reportsPage = (() => {
         if ([400, 404, 422].includes(error.status)) error.terminal = true;
         throw error;
       }
-      if (!created?.report_id || !['generating', 'ready'].includes(created.status)) throw new Error('未确认报告是否创建，可继续使用原请求获取。');
+      if (!created?.report_id || !['generating', 'ready'].includes(created.status)) throw new Error(t('未确认报告是否创建，可继续使用原请求获取。'));
       reportId = created.report_id;
     }
     return pollReport();
@@ -189,8 +190,8 @@ window.reportsPage = (() => {
   }
 
   function validateHistory(data) {
-    if (!data || !Array.isArray(data.items) || !Number.isInteger(data.total) || data.total < 0) throw new Error('历史报告响应格式不正确');
-    for (const item of data.items) if (!item.id || !parseDate(item.date_from) || !parseDate(item.date_to) || item.date_from > item.date_to || typeof item.title !== 'string' || typeof item.generated_at !== 'string') throw new Error('历史报告条目格式不正确');
+    if (!data || !Array.isArray(data.items) || !Number.isInteger(data.total) || data.total < 0) throw new Error(t('历史报告响应格式不正确'));
+    for (const item of data.items) if (!item.id || !parseDate(item.date_from) || !parseDate(item.date_to) || item.date_from > item.date_to || typeof item.title !== 'string' || typeof item.generated_at !== 'string') throw new Error(t('历史报告条目格式不正确'));
   }
 
   async function loadHistory(force = false) {
@@ -198,29 +199,29 @@ window.reportsPage = (() => {
     historyLoading = true;
     controls();
     $('report-history-message').hidden = false;
-    $('report-history-message').textContent = '正在读取历史报告…';
+    $('report-history-message').textContent = t('正在读取历史报告…');
     $('report-history-list').replaceChildren();
     try {
       const data = await api.history(historyPage);
       validateHistory(data);
       historyTotal = data.total;
       historyLoaded = true;
-      $('report-history-page').textContent = `第 ${historyPage} / ${Math.max(1, Math.ceil(historyTotal / 10))} 页`;
+      $('report-history-page').textContent = t('第 {current} / {total} 页', { current: historyPage, total: Math.max(1, Math.ceil(historyTotal / 10)) });
       $('report-history-message').hidden = Boolean(data.items.length);
-      $('report-history-message').textContent = '还没有生成过报告。';
+      $('report-history-message').textContent = t('还没有生成过报告。');
       for (const item of data.items) {
         const row = node('article', 'report-history-row');
         const info = document.createElement('div');
         info.append(node('h3', '', item.title), node('p', '', `${displayDate(item.date_from)}—${displayDate(item.date_to)} · ${displayTime(item.generated_at)}`));
-        const button = node('button', 'button button-secondary button-small', '查看报告');
+        const button = node('button', 'button button-secondary button-small', t('查看报告'));
         button.type = 'button';
-        button.setAttribute('aria-label', `查看报告 ${item.title}`);
+        button.setAttribute('aria-label', t('查看报告 {title}', { title: item.title }));
         button.onclick = () => viewReport(item.id);
         row.append(info, button);
         $('report-history-list').append(row);
       }
     } catch (error) {
-      $('report-history-message').textContent = `读取历史报告失败：${error.message}`;
+      $('report-history-message').textContent = t('读取历史报告失败：{message}', { message: error.message });
       historyLoaded = false;
     } finally {
       historyLoading = false;
@@ -237,7 +238,7 @@ window.reportsPage = (() => {
       const report = await api.get(id);
       renderReport(report);
       if (active) $('report-viewer').scrollIntoView({ block: 'start' });
-    } catch (error) { showError(`打开报告失败：${error.message}`); }
+    } catch (error) { showError(t('打开报告失败：{message}', { message: error.message })); }
     finally { viewing = false; controls(); }
   }
 
@@ -249,20 +250,20 @@ window.reportsPage = (() => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `学习报告_${currentReport.date_from}_${currentReport.date_to}.md`;
+      link.download = `${window.i18n.language === 'en' ? 'Learning_Report' : '学习报告'}_${currentReport.date_from}_${currentReport.date_to}.md`;
       document.body.append(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (error) {
-      showError(`下载报告失败：${error.message}`);
+      showError(t('下载报告失败：{message}', { message: error.message }));
     }
   }
 
   const week = thisWeek();
   $('report-date-from').value = week.from;
   $('report-date-to').value = week.to;
-  $('report-timezone').textContent = `本地时区 · ${timezone}`;
+  $('report-timezone').textContent = t('本地时区 · {timezone}', { timezone });
   updateRangeUI();
   document.querySelectorAll('[name="report-period"]').forEach(input => input.addEventListener('change', updateRangeUI));
   for (const input of [$('report-date-from'), $('report-date-to')]) input.addEventListener('change', updateRangeUI);
@@ -274,10 +275,10 @@ window.reportsPage = (() => {
     const from = parseDate(range.date_from);
     const to = parseDate(range.date_to);
     if (!from || !to || from > to) {
-      showError('请选择有效的开始和结束日期，开始日期不能晚于结束日期。');
+      showError(t('请选择有效的开始和结束日期，开始日期不能晚于结束日期。'));
       return;
     }
-    payload = { request_id: crypto.randomUUID(), ...range, timezone };
+    payload = { request_id: crypto.randomUUID(), ...range, timezone, language: window.i18n.language };
     reportId = null;
     mode = 'generating';
     runGeneration();

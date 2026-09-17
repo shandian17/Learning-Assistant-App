@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from ..extensions import db
 from ..models import Material, MaterialChunk, MaterialVersion
 from ..services.document_extractor import SUPPORTED_EXTENSIONS
+from ..services.language import normalize_language
 from ..services.material_processor import delete_material_permanently, enqueue_material_processing
 from .errors import APIError
 
@@ -36,6 +37,10 @@ def upload_material():
         raise APIError(400, "INVALID_ARGUMENT", "缺少上传文件")
 
     upload_filename = _clean_filename(uploaded_file.filename)
+    try:
+        language = normalize_language(request.form.get("language"))
+    except ValueError as error:
+        raise APIError(400, "INVALID_ARGUMENT", "language 必须是 zh-CN 或 en") from error
     filename = upload_filename
     extension = Path(filename).suffix.casefold()
     if extension not in SUPPORTED_EXTENSIONS:
@@ -87,6 +92,7 @@ def upload_material():
         original_filename=upload_filename,
         storage_path=str(storage_path.resolve()),
         file_size=0,
+        language=language,
         status="processing",
     )
     db.session.add(version)
@@ -125,6 +131,7 @@ def upload_material():
                     "material_id": material.id,
                     "version_id": version.id,
                     "filename": material.filename,
+                    "language": version.language,
                     "status": "processing",
                 }
             }
@@ -163,6 +170,7 @@ def get_material(material_id: str):
             "version_no": version.version_no,
             "status": version.status,
             "file_size": version.file_size,
+            "language": version.language,
             "error_message": version.error_message,
             "uploaded_at": version.uploaded_at.isoformat(),
             "ready_at": version.ready_at.isoformat() if version.ready_at else None,

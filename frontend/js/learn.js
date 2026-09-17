@@ -1,5 +1,6 @@
 window.learnPage = (() => {
   const $ = id => document.getElementById(id);
+  const t = window.i18n.t;
   const api = window.api.chats;
   let active = false;
   let loaded = false;
@@ -24,8 +25,8 @@ window.learnPage = (() => {
     $('learn-sources').querySelectorAll('input').forEach(input => { input.disabled = busy || Boolean(sessionId); });
     $('chat-input').disabled = busy || !selected.length;
     $('chat-send').disabled = busy || !selected.length || !$('chat-input').value.trim();
-    $('chat-state').textContent = busy ? '正在查找资料并生成回答…' : sessionId ? '连续对话中' : selected.length ? `已选择 ${selected.length} 份资料` : '请选择学习资料';
-    $('chat-helper').textContent = busy ? '正在生成回答，请稍候' : '回答会标明资料出处';
+    $('chat-state').textContent = busy ? t('正在查找资料并生成回答…') : sessionId ? t('连续对话中') : selected.length ? t('已选择 {count} 份资料', { count: selected.length }) : t('请选择学习资料');
+    $('chat-helper').textContent = busy ? t('正在生成回答，请稍候') : t('回答会标明资料出处');
   }
 
   async function loadSources(force = false) {
@@ -43,7 +44,7 @@ window.learnPage = (() => {
         const input = document.createElement('input');
         input.type = 'checkbox';
         input.value = material.id;
-        input.setAttribute('aria-label', `用于对话：${material.filename}`);
+        input.setAttribute('aria-label', t('用于对话：{filename}', { filename: material.filename }));
         input.checked = previous.has(material.id);
         input.addEventListener('change', controls);
         label.append(input, node('span', '', material.filename));
@@ -51,15 +52,15 @@ window.learnPage = (() => {
       }
       if (!ready.length) {
         const empty = node('div', 'source-placeholder');
-        empty.append(node('h3', '', '还没有可用资料'), node('p', '', '请先上传资料并等待解析完成。'));
-        const link = node('a', 'button button-secondary', '前往资料库 ↗');
+        empty.append(node('h3', '', t('还没有可用资料')), node('p', '', t('请先上传资料并等待解析完成。')));
+        const link = node('a', 'button button-secondary', t('前往资料库 ↗'));
         link.href = '#library';
         empty.append(link);
         $('learn-sources').append(empty);
       }
       loaded = true;
     } catch (error) {
-      $('learn-source-error').textContent = `读取资料失败：${error.message}`;
+      $('learn-source-error').textContent = t('读取资料失败：{message}', { message: error.message });
       $('learn-source-error').hidden = false;
     } finally {
       busy = false;
@@ -69,10 +70,10 @@ window.learnPage = (() => {
 
   function locatorText(locator) {
     if (!locator || typeof locator !== 'object') return '';
-    if (locator.page !== undefined) return `第 ${locator.page} 页`;
-    if (locator.slide !== undefined) return `第 ${locator.slide} 张`;
+    if (locator.page !== undefined) return t('第 {value} 页', { value: locator.page });
+    if (locator.slide !== undefined) return t('第 {value} 张', { value: locator.slide });
     if (locator.heading) return String(locator.heading);
-    if (locator.line_start !== undefined) return `第 ${locator.line_start} 行`;
+    if (locator.line_start !== undefined) return t('第 {value} 行', { value: locator.line_start });
     return '';
   }
 
@@ -84,7 +85,7 @@ window.learnPage = (() => {
       const list = node('div', 'chat-citations');
       for (const citation of citations) {
         const location = locatorText(citation.locator);
-        list.append(node('span', '', `${citation.filename || '资料'}${location ? ` · ${location}` : ''}`));
+        list.append(node('span', '', `${citation.filename || t('资料')}${location ? ` · ${location}` : ''}`));
       }
       message.append(list);
     }
@@ -102,12 +103,12 @@ window.learnPage = (() => {
     try {
       if (!sessionId) {
         const session = await api.create(materialIds);
-        if (!session?.session_id) throw new Error('后台没有返回对话编号');
+        if (!session?.session_id) throw new Error(t('后台没有返回对话编号'));
         sessionId = session.session_id;
       }
       const response = await api.send(sessionId, content);
       const assistant = response?.assistant_message;
-      if (!response?.user_message_id || !assistant?.id || typeof assistant.content !== 'string' || !Array.isArray(assistant.citations)) throw new Error('聊天响应格式不正确');
+      if (!response?.user_message_id || !assistant?.id || typeof assistant.content !== 'string' || !Array.isArray(assistant.citations)) throw new Error(t('聊天响应格式不正确'));
       appendMessage('user', content);
       appendMessage('assistant', assistant.content, assistant.citations);
       $('chat-input').value = '';

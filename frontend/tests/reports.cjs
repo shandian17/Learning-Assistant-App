@@ -20,6 +20,7 @@ const http = require('node:http');
   try {
     browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 }, acceptDownloads: true });
+    await page.addInitScript(() => localStorage.setItem('learning-assistant-language', 'zh-CN'));
     const pageErrors = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     const reports = new Map();
@@ -103,6 +104,7 @@ const http = require('node:http');
     await page.locator('#report-content:not([hidden])').waitFor();
     assert.equal(createCalls.length, 1);
     assert.equal(createCalls[0].period_type, 'week');
+    assert.equal(createCalls[0].language, 'zh-CN');
     assert.ok(createCalls[0].request_id);
     assert.ok(createCalls[0].timezone);
     assert.ok(createCalls[0].date_from <= createCalls[0].date_to);

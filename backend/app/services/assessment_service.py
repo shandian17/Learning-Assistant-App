@@ -8,6 +8,7 @@ from ..extensions import db
 from ..models import Assessment, AssessmentAnswer, AssessmentQuestion, AssessmentSubmission
 from ..models.base import utc_now
 from .ai_prompts import GRADING_SYSTEM_PROMPT, QUESTION_SYSTEM_PROMPT
+from .language import language_name
 from .llm_client import LLMClient
 
 
@@ -45,6 +46,7 @@ def generate_assessment_task(app, assessment_id: str) -> None:
             expected_types = assessment.question_counts_json
             total = sum(expected_types.values())
             payload = {
+                "response_language": language_name(assessment.language),
                 "question_counts": expected_types,
                 "difficulty_counts": difficulty_counts(total),
                 "documents": documents,
@@ -141,7 +143,16 @@ def grade_submission_task(app, submission_id: str) -> None:
             result = LLMClient().chat_json(
                 [
                     {"role": "system", "content": GRADING_SYSTEM_PROMPT},
-                    {"role": "user", "content": json.dumps({"questions": input_questions}, ensure_ascii=False)},
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            {
+                                "response_language": language_name(assessment.language),
+                                "questions": input_questions,
+                            },
+                            ensure_ascii=False,
+                        ),
+                    },
                 ],
                 temperature=0,
             )
@@ -210,6 +221,7 @@ def _assessment_documents(assessment: Assessment):
                 "material_id": version.material_id,
                 "version_id": version.id,
                 "filename": scope.filename_snapshot,
+                "declared_language": version.language,
                 "sources": sources,
             }
         )

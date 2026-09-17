@@ -61,6 +61,22 @@ def test_upload_runs_full_storage_extraction_and_database_pipeline(app, client):
     assert source.get_json()["data"]["text"] == "# 注意力\n查询、键和值。"
 
 
+def test_upload_records_interface_language_without_translating_content(app, client):
+    content = "Transformer 与注意力机制 stay unchanged."
+    response = _upload(client, "mixed.txt", content.encode(), language="en")
+    assert response.status_code == 202
+    result = response.get_json()["data"]
+    assert result["language"] == "en"
+
+    with app.app_context():
+        version = db.session.get(MaterialVersion, result["version_id"])
+        assert version.language == "en"
+        assert version.chunks[0].text == content
+
+    listed = client.get("/api/v1/materials").get_json()["data"]["items"]
+    assert listed[0]["language"] == "en"
+
+
 def test_upload_returns_while_background_parser_is_running(app, client, monkeypatch):
     started = Event()
     release = Event()

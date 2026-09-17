@@ -19,6 +19,7 @@ const http = require('node:http');
   try {
     browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
     const page = await browser.newPage({ viewport: { width: 1100, height: 850 } });
+    await page.addInitScript(() => localStorage.setItem('learning-assistant-language', 'zh-CN'));
     const errors = [];
     const creates = [];
     const messages = [];
@@ -57,8 +58,8 @@ const http = require('node:http');
     await page.locator('#chat-input').fill('什么是注意力机制？');
     await page.locator('#chat-send').click();
     await page.locator('.chat-message.assistant').waitFor();
-    assert.deepEqual(creates, [{ material_ids: ['m1'] }]);
-    assert.deepEqual(messages, [{ content: '什么是注意力机制？' }]);
+    assert.deepEqual(creates, [{ material_ids: ['m1'], language: 'zh-CN' }]);
+    assert.deepEqual(messages, [{ content: '什么是注意力机制？', language: 'zh-CN' }]);
     assert.equal(await page.locator('.chat-message').count(), 2);
     assert.match(await page.locator('.chat-message.assistant').innerText(), /依据资料回答/);
     assert.equal(await page.locator('.chat-message img').count(), 0);

@@ -47,6 +47,7 @@ class Material(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
             "filename": self.filename,
             "file_type": self.file_type,
             "file_size": display_version.file_size if display_version else None,
+            "language": display_version.language if display_version else "zh-CN",
             "current_version_id": self.current_version_id,
             "status": display_version.status if display_version else "failed",
             "error_message": display_version.error_message if display_version else "资料没有可用版本",
@@ -54,12 +55,17 @@ class Material(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
             "updated_at": self.updated_at.isoformat(),
         }
         if self.current_version:
-            data["current_version"] = {"id": self.current_version.id, "status": self.current_version.status}
+            data["current_version"] = {
+                "id": self.current_version.id,
+                "status": self.current_version.status,
+                "language": self.current_version.language,
+            }
         if pending:
             data["pending_version"] = {
                 "id": pending.id,
                 "status": pending.status,
                 "file_size": pending.file_size,
+                "language": pending.language,
                 "error_message": pending.error_message,
             }
         return data
@@ -73,6 +79,7 @@ class MaterialVersion(UUIDPrimaryKeyMixin, db.Model):
     original_filename = db.Column(db.String(512), nullable=False)
     storage_path = db.Column(db.String(1024), nullable=False)
     file_size = db.Column(db.BigInteger, nullable=False)
+    language = db.Column(db.String(8), nullable=False, default="zh-CN", server_default="zh-CN")
     status = db.Column(material_version_status, nullable=False, default="processing")
     error_message = db.Column(db.Text, nullable=True)
     uploaded_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)

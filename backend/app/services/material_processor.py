@@ -90,7 +90,7 @@ def process_material_version(app, version_id: str) -> None:
                     db.session.flush()
                     point = KnowledgePoint(
                         version_id=version_id,
-                        name=_knowledge_point_name(block.locator, block.text, index),
+                        name=_knowledge_point_name(block.locator, block.text, index, version.language),
                         description=block.text.strip()[:240],
                     )
                     db.session.add(point)
@@ -110,17 +110,23 @@ def process_material_version(app, version_id: str) -> None:
                 db.session.remove()
 
 
-def _knowledge_point_name(locator: dict, text: str, index: int) -> str:
+def _knowledge_point_name(locator: dict, text: str, index: int, language: str = "zh-CN") -> str:
     for key in ("heading", "title"):
         value = locator.get(key)
         if value:
             return str(value)[:512]
-    for key, label in (("page", "第 {value} 页"), ("slide", "第 {value} 张幻灯片")):
+    labels = (
+        (("page", "Page {value}"), ("slide", "Slide {value}"))
+        if language == "en"
+        else (("page", "第 {value} 页"), ("slide", "第 {value} 张幻灯片"))
+    )
+    for key, label in labels:
         value = locator.get(key)
         if value is not None:
             return label.format(value=value)
     first_line = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    return (first_line[:80] or f"知识点 {index + 1}")[:512]
+    fallback = f"Knowledge point {index + 1}" if language == "en" else f"知识点 {index + 1}"
+    return (first_line[:80] or fallback)[:512]
 
 
 def _mark_failed(version_id: str, message: str) -> None:
